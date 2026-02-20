@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Golf</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="glass-morph">
+            <h1>Financial Golf ⛳</h1>
+            <p>Welcome, Student! Master your money, master the green.</p>
+        </header>
+
+        <main>
+            <section class="card glass-morph">
+                <h2>Ransomware Protection Status</h2>
+                <div id="security-status" class="status-badge checking">Checking Security API...</div>
+            </section>
+
+            <section class="grid">
+                <div class="card glass-morph">
+                    <h3>Compound Interest Calculator</h3>
+                    <p>Powered by our Python Finance Engine</p>
+                    <div class="form-group">
+                        <input type="number" id="principal" placeholder="Starting Amount ($)" value="1000">
+                        <button onclick="calculateInterest()">Calculate Target</button>
+                    </div>
+                    <div id="interest-result" class="result"></div>
+                </div>
+
+                <div class="card glass-morph">
+                    <h3>Daily Financial Quiz</h3>
+                    <p>Powered by our Go Quiz Engine</p>
+                    <button onclick="loadQuiz()">Load Today's Quiz</button>
+                    <div id="quiz-container"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Hidden Game Container -->
+    <div id="golf-game-overlay" class="hidden">
+        <div class="game-container">
+            <h2>Secret Golf Link Activated! 🤫</h2>
+            <canvas id="golfCanvas" width="600" height="400"></canvas>
+            <button onclick="closeGolf()">Return to Studies</button>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
