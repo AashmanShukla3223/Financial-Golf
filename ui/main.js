@@ -34,26 +34,49 @@ async function calculateInterest() {
             body: JSON.stringify({ principal: parseFloat(principal), rate: 0.08, years: 10 })
         });
         const data = await response.json();
-        document.getElementById('interest-result').innerText = 
+        document.getElementById('interest-result').innerText =
             `In 10 years at 8%: $${data.amount_after_years}`;
     } catch (e) {
         document.getElementById('interest-result').innerText = "Simulated Python Server Offline (Waiting for Sidecar)";
     }
 }
 
+let quizData = [];
+let currentQuizIndex = 0;
+
 async function loadQuiz() {
     try {
         const response = await fetch('http://127.0.0.1:8081/api/quiz');
-        const data = await response.json();
-        const q = data[0];
-        let html = `<p><strong>${q.question}</strong></p>`;
-        q.options.forEach((opt, idx) => {
-            html += `<button onclick="alert('${idx === q.answer ? 'Correct!' : 'Incorrect!'}')">${opt}</button>`;
-        });
-        document.getElementById('quiz-container').innerHTML = html;
+        quizData = await response.json();
+        currentQuizIndex = 0;
+        renderQuiz();
     } catch (e) {
         document.getElementById('quiz-container').innerHTML = "<p>Simulated Go Server Offline (Waiting for Sidecar)</p>";
     }
+}
+
+function renderQuiz() {
+    if (currentQuizIndex >= quizData.length) {
+        document.getElementById('quiz-container').innerHTML = "<h3>Quiz Complete! 🎉</h3><p>You have answered all 10 questions.</p><button onclick='loadQuiz()'>Restart Quiz</button>";
+        return;
+    }
+
+    const q = quizData[currentQuizIndex];
+    let html = `<p><strong>Question ${currentQuizIndex + 1}/${quizData.length}: ${q.question}</strong></p>`;
+    q.options.forEach((opt, idx) => {
+        html += `<button onclick="checkAnswer(${idx}, ${q.answer})">${opt}</button>`;
+    });
+    document.getElementById('quiz-container').innerHTML = html;
+}
+
+window.checkAnswer = function (selectedIndex, correctIndex) {
+    if (selectedIndex === correctIndex) {
+        alert('Correct!');
+    } else {
+        alert('Incorrect!');
+    }
+    currentQuizIndex++;
+    renderQuiz();
 }
 
 // Minimal Golf Game
@@ -65,13 +88,13 @@ function initGolf() {
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         // Hole
-        ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(500, 200, 15, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(500, 200, 15, 0, Math.PI * 2); ctx.fill();
         // Ball
-        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(ballX, ballY, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(ballX, ballY, 8, 0, Math.PI * 2); ctx.fill();
     }
-    
+
     // Very simple interaction
-    canvas.onmousedown = () => { ballX += 50; draw(); if(ballX >= 500) alert("Hole in One!"); }
+    canvas.onmousedown = () => { ballX += 50; draw(); if (ballX >= 500) alert("Hole in One!"); }
     draw();
 }
 
