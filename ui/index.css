@@ -51,7 +51,7 @@ p { color: #cbd5e1; }
     border-color: var(--primary);
 }
 
-input, button {
+input, button, select {
     width: 100%;
     padding: 12px;
     margin-top: 10px;
@@ -62,8 +62,13 @@ input, button {
     box-sizing: border-box;
 }
 
-input {
+input, select {
     background: rgba(0,0,0,0.2);
+    color: white;
+}
+
+select option {
+    background: var(--bg-color);
     color: white;
 }
 

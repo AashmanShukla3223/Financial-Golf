@@ -27,15 +27,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function calculateInterest() {
     const principal = document.getElementById('principal').value;
+    const currency = document.getElementById('currency').value;
+    const currentAge = parseInt(document.getElementById('current-age').value) || 18;
+    const duration = parseInt(document.getElementById('duration').value) || 10;
+    const ratePercent = parseFloat(document.getElementById('rate').value) || 8;
+    const rate = ratePercent / 100.0;
+
     try {
         const response = await fetch('http://127.0.0.1:8082/api/compound-interest', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ principal: parseFloat(principal), rate: 0.08, years: 10 })
+            body: JSON.stringify({ principal: parseFloat(principal), rate: rate, years: duration })
         });
         const data = await response.json();
+        const finalAge = currentAge + duration;
         document.getElementById('interest-result').innerText =
-            `In 10 years at 8%: $${data.amount_after_years}`;
+            `By age ${finalAge} (${duration} years at ${ratePercent}%):\n${currency}${data.amount_after_years.toLocaleString()}`;
     } catch (e) {
         document.getElementById('interest-result').innerText = "Simulated Python Server Offline (Waiting for Sidecar)";
     }
