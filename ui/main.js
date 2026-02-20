@@ -79,22 +79,144 @@ window.checkAnswer = function (selectedIndex, correctIndex) {
     renderQuiz();
 }
 
-// Minimal Golf Game
+// Physics-based Golf Minigame
 function initGolf() {
     const canvas = document.getElementById('golfCanvas');
     const ctx = canvas.getContext('2d');
-    let ballX = 50, ballY = 200, isDragging = false;
+
+    let ball = { x: 50, y: 200, r: 8, vx: 0, vy: 0 };
+    let hole = { x: 500, y: 200, r: 15 };
+
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let currentMouse = { x: 0, y: 0 };
+    let gameState = 'ready'; // ready, moving, win, lose
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // Hole
-        ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(500, 200, 15, 0, Math.PI * 2); ctx.fill();
-        // Ball
-        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(ballX, ballY, 8, 0, Math.PI * 2); ctx.fill();
+
+        // Draw Hole
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.arc(hole.x, hole.y, hole.r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw Ball
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw Slingshot Aim Line
+        if (isDragging && gameState === 'ready') {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(ball.x, ball.y);
+            let dx = currentMouse.x - dragStart.x;
+            let dy = currentMouse.y - dragStart.y;
+            ctx.lineTo(ball.x - dx, ball.y - dy);
+            ctx.stroke();
+        }
+
+        // Draw Game Overlays
+        ctx.fillStyle = 'white';
+        ctx.font = '24px Outfit, sans-serif';
+        ctx.textAlign = 'center';
+        if (gameState === 'win') {
+            ctx.fillText('Hole in One! 🎉', canvas.width / 2, canvas.height / 2);
+            ctx.font = '16px Outfit, sans-serif';
+            ctx.fillText('Click to play again', canvas.width / 2, canvas.height / 2 + 30);
+        } else if (gameState === 'lose') {
+            ctx.fillText('Missed! You Lose.', canvas.width / 2, canvas.height / 2);
+            ctx.font = '16px Outfit, sans-serif';
+            ctx.fillText('Click to try again', canvas.width / 2, canvas.height / 2 + 30);
+        }
     }
 
-    // Very simple interaction
-    canvas.onmousedown = () => { ballX += 50; draw(); if (ballX >= 500) alert("Hole in One!"); }
+    function update() {
+        if (gameState === 'moving') {
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            // Friction
+            ball.vx *= 0.98;
+            ball.vy *= 0.98;
+
+            // Wall Collisions
+            if (ball.x - ball.r < 0 || ball.x + ball.r > canvas.width) {
+                ball.vx *= -0.8;
+                ball.x = ball.x - ball.r < 0 ? ball.r : canvas.width - ball.r;
+            }
+            if (ball.y - ball.r < 0 || ball.y + ball.r > canvas.height) {
+                ball.vy *= -0.8;
+                ball.y = ball.y - ball.r < 0 ? ball.r : canvas.height - ball.r;
+            }
+
+            // Check Hole Collision
+            let dist = Math.hypot(ball.x - hole.x, ball.y - hole.y);
+            if (dist < hole.r) {
+                gameState = 'win';
+                ball.vx = 0; ball.vy = 0;
+            }
+
+            // Check if Stopped
+            if (Math.abs(ball.vx) < 0.1 && Math.abs(ball.vy) < 0.1 && gameState === 'moving') {
+                ball.vx = 0; ball.vy = 0;
+                gameState = 'lose';
+            }
+        }
+        draw();
+        if (gameState === 'moving') {
+            requestAnimationFrame(update);
+        }
+    }
+
+    // Input handlers mapping directly to the slingshot mechanic
+    canvas.onmousedown = (e) => {
+        if (gameState === 'win' || gameState === 'lose') {
+            ball = { x: 50, y: 200, r: 8, vx: 0, vy: 0 };
+            gameState = 'ready';
+            draw();
+            return;
+        }
+        if (gameState !== 'ready') return;
+
+        let rect = canvas.getBoundingClientRect();
+        dragStart.x = e.clientX - rect.left;
+        dragStart.y = e.clientY - rect.top;
+        isDragging = true;
+        currentMouse.x = dragStart.x;
+        currentMouse.y = dragStart.y;
+    };
+
+    canvas.onmousemove = (e) => {
+        if (!isDragging) return;
+        let rect = canvas.getBoundingClientRect();
+        currentMouse.x = e.clientX - rect.left;
+        currentMouse.y = e.clientY - rect.top;
+        draw();
+    };
+
+    canvas.onmouseup = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        if (gameState === 'ready') {
+            let dx = currentMouse.x - dragStart.x;
+            let dy = currentMouse.y - dragStart.y;
+
+            // Shoot in opposite direction of drag
+            ball.vx = -dx * 0.15;
+            ball.vy = -dy * 0.15;
+
+            if (Math.abs(ball.vx) > 0.5 || Math.abs(ball.vy) > 0.5) {
+                gameState = 'moving';
+                requestAnimationFrame(update);
+            }
+        }
+        draw();
+    };
+
     draw();
 }
 
