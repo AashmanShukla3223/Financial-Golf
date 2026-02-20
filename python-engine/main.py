@@ -4,7 +4,7 @@ import math
 
 app = Flask(__name__)
 # Restrict CORS specifically to Tauri's local origin
-CORS(app, resources={r"/api/*": {"origins": "http://tauri.localhost"}})
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 @app.route('/api/compound-interest', methods=['POST'])
 def calculate_compound_interest():
