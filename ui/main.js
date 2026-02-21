@@ -31,105 +31,55 @@ async function calculateInterest() {
     const currentAge = parseInt(document.getElementById('current-age').value) || 18;
     const duration = parseInt(document.getElementById('duration').value) || 10;
     const ratePercent = parseFloat(document.getElementById('rate').value) || 8;
-    const rate = ratePercent / 100.0;
 
-    // Secure financial calculation (Ported from Python)
-    const amount = principal * Math.pow((1 + rate), duration);
-    const finalAge = currentAge + duration;
+    try {
+        const data = await invoke('calculate_interest', { principal, currentAge, duration, ratePercent });
 
-    document.getElementById('interest-result').innerText =
-        `By age ${finalAge} (${duration} years at ${ratePercent}%):\n${currency}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        document.getElementById('interest-result').innerText =
+            `By age ${data.final_age} (${duration} years at ${ratePercent}%):\n${currency}${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    } catch (e) {
+        document.getElementById('interest-result').innerText = "Error calculating interest natively.";
+    }
 }
 
-let quizData = [
-    {
-        question: "What is an emergency fund?",
-        options: ["Money for buying a new video game", "Savings specifically for unexpected expenses", "A loan from the bank", "Money you invest in the stock market"],
-        answer: 1,
-    },
-    {
-        question: "What does ROI stand for?",
-        options: ["Rate of Inflation", "Return on Investment", "Risk over Income", "Ratio of Interest"],
-        answer: 1,
-    },
-    {
-        question: "Which of the following is considered a 'fixed expense'?",
-        options: ["Monthly rent", "Groceries", "Entertainment", "Gas for your car"],
-        answer: 0,
-    },
-    {
-        question: "What is compound interest?",
-        options: ["Interest you pay on credit cards", "Interest calculated only on the initial principal", "Interest earned on both the principal and the accumulated interest", "A type of tax"],
-        answer: 2,
-    },
-    {
-        question: "What is the purpose of a credit score?",
-        options: ["To determine your tax bracket", "To show how much money you have in the bank", "To track your daily spending", "To measure your creditworthiness and likelihood to repay debt"],
-        answer: 3,
-    },
-    {
-        question: "What is a 'bull market'?",
-        options: ["A market where prices are falling", "A market where prices are rising", "A market only for agricultural goods", "A market with no trading activity"],
-        answer: 1,
-    },
-    {
-        question: "What does it mean to 'diversify' your investments?",
-        options: ["Putting all your money into one successful company", "Spreading your money across different types of investments to reduce risk", "Only investing in international stocks", "Keeping all your money in a savings account"],
-        answer: 1,
-    },
-    {
-        question: "Which asset is generally considered the most 'liquid'?",
-        options: ["Real Estate", "A 10-year Treasury Bond", "Cash in a checking account", "Collectibles (like art or trading cards)"],
-        answer: 2,
-    },
-    {
-        question: "What is inflation?",
-        options: ["The general increase in prices and fall in the purchasing power of money", "When a balloon pops", "A sudden increase in your paycheck", "The interest paid on savings accounts"],
-        answer: 0,
-    },
-    {
-        question: "What does 'pay yourself first' mean in budgeting?",
-        options: ["Buying things you want before paying bills", "Setting aside a portion of your income for savings or investing before paying any other expenses", "Paying your own salary if you own a business", "Taking out a cash advance"],
-        answer: 1,
-    }
-];
-let currentQuizIndex = 0;
-
-function loadQuiz() {
-    currentQuizIndex = 0;
+async function loadQuiz() {
+    await invoke('reset_quiz');
     renderQuiz();
 }
 
-function renderQuiz() {
-    if (currentQuizIndex >= quizData.length) {
+async function renderQuiz() {
+    const quizResponse = await invoke('get_quiz');
+
+    if (quizResponse.is_complete) {
         document.getElementById('quiz-container').innerHTML = "<h3>Quiz Complete! 🎉</h3><p>You have answered all 10 questions.</p><button onclick='loadQuiz()'>Restart Quiz</button>";
         return;
     }
 
-    const q = quizData[currentQuizIndex];
-    let html = `<p><strong>Question ${currentQuizIndex + 1}/${quizData.length}: ${q.question}</strong></p>`;
+    const q = quizResponse.question;
+    let html = `<p><strong>Question ${quizResponse.current_number}/${quizResponse.total}: ${q.question}</strong></p>`;
     q.options.forEach((opt, idx) => {
-        html += `<button onclick="checkAnswer(${idx}, ${q.answer})">${opt}</button>`;
+        html += `<button onclick="checkAnswer(${idx})">${opt}</button>`;
     });
     document.getElementById('quiz-container').innerHTML = html;
 }
 
-window.checkAnswer = function (selectedIndex, correctIndex) {
-    if (selectedIndex === correctIndex) {
+window.checkAnswer = async function (selectedIndex) {
+    const isCorrect = await invoke('check_answer', { selected: selectedIndex });
+    if (isCorrect) {
         alert('Correct!');
     } else {
         alert('Incorrect!');
     }
-    currentQuizIndex++;
     renderQuiz();
 }
 
 // Physics-based Golf Minigame
-function initGolf() {
+// Physics-based Golf Engine (Native Rust Backend)
+async function initGolf() {
     const canvas = document.getElementById('golfCanvas');
     const ctx = canvas.getContext('2d');
 
-    let ball = { x: 50, y: 200, r: 8, vx: 0, vy: 0 };
+    let ball = await invoke('init_golf');
     let hole = { x: 500, y: 200, r: 15 };
 
     let isDragging = false;
@@ -179,37 +129,11 @@ function initGolf() {
         }
     }
 
-    function update() {
+    async function update() {
         if (gameState === 'moving') {
-            ball.x += ball.vx;
-            ball.y += ball.vy;
-
-            // Friction
-            ball.vx *= 0.98;
-            ball.vy *= 0.98;
-
-            // Wall Collisions
-            if (ball.x - ball.r < 0 || ball.x + ball.r > canvas.width) {
-                ball.vx *= -0.8;
-                ball.x = ball.x - ball.r < 0 ? ball.r : canvas.width - ball.r;
-            }
-            if (ball.y - ball.r < 0 || ball.y + ball.r > canvas.height) {
-                ball.vy *= -0.8;
-                ball.y = ball.y - ball.r < 0 ? ball.r : canvas.height - ball.r;
-            }
-
-            // Check Hole Collision
-            let dist = Math.hypot(ball.x - hole.x, ball.y - hole.y);
-            if (dist < hole.r) {
-                gameState = 'win';
-                ball.vx = 0; ball.vy = 0;
-            }
-
-            // Check if Stopped
-            if (Math.abs(ball.vx) < 0.1 && Math.abs(ball.vy) < 0.1 && gameState === 'moving') {
-                ball.vx = 0; ball.vy = 0;
-                gameState = 'lose';
-            }
+            const stateInfo = await invoke('update_golf_physics');
+            ball = stateInfo.ball;
+            gameState = stateInfo.game_state;
         }
         draw();
         if (gameState === 'moving') {
@@ -217,10 +141,9 @@ function initGolf() {
         }
     }
 
-    // Input handlers mapping directly to the slingshot mechanic
-    canvas.onmousedown = (e) => {
+    canvas.onmousedown = async (e) => {
         if (gameState === 'win' || gameState === 'lose') {
-            ball = { x: 50, y: 200, r: 8, vx: 0, vy: 0 };
+            ball = await invoke('init_golf');
             gameState = 'ready';
             draw();
             return;
@@ -243,21 +166,16 @@ function initGolf() {
         draw();
     };
 
-    canvas.onmouseup = (e) => {
+    canvas.onmouseup = async (e) => {
         if (!isDragging) return;
         isDragging = false;
         if (gameState === 'ready') {
             let dx = currentMouse.x - dragStart.x;
             let dy = currentMouse.y - dragStart.y;
 
-            // Shoot in opposite direction of drag
-            ball.vx = -dx * 0.15;
-            ball.vy = -dy * 0.15;
-
-            if (Math.abs(ball.vx) > 0.5 || Math.abs(ball.vy) > 0.5) {
-                gameState = 'moving';
-                requestAnimationFrame(update);
-            }
+            await invoke('shoot_golf', { dx, dy });
+            gameState = 'moving';
+            requestAnimationFrame(update);
         }
         draw();
     };
