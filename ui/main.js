@@ -26,40 +26,78 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function calculateInterest() {
-    const principal = document.getElementById('principal').value;
+    const principal = parseFloat(document.getElementById('principal').value);
     const currency = document.getElementById('currency').value;
     const currentAge = parseInt(document.getElementById('current-age').value) || 18;
     const duration = parseInt(document.getElementById('duration').value) || 10;
     const ratePercent = parseFloat(document.getElementById('rate').value) || 8;
     const rate = ratePercent / 100.0;
 
-    try {
-        const response = await fetch('http://127.0.0.1:8082/api/compound-interest', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ principal: parseFloat(principal), rate: rate, years: duration })
-        });
-        const data = await response.json();
-        const finalAge = currentAge + duration;
-        document.getElementById('interest-result').innerText =
-            `By age ${finalAge} (${duration} years at ${ratePercent}%):\n${currency}${data.amount_after_years.toLocaleString()}`;
-    } catch (e) {
-        document.getElementById('interest-result').innerText = "Simulated Python Server Offline (Waiting for Sidecar)";
-    }
+    // Secure financial calculation (Ported from Python)
+    const amount = principal * Math.pow((1 + rate), duration);
+    const finalAge = currentAge + duration;
+
+    document.getElementById('interest-result').innerText =
+        `By age ${finalAge} (${duration} years at ${ratePercent}%):\n${currency}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-let quizData = [];
+let quizData = [
+    {
+        question: "What is an emergency fund?",
+        options: ["Money for buying a new video game", "Savings specifically for unexpected expenses", "A loan from the bank", "Money you invest in the stock market"],
+        answer: 1,
+    },
+    {
+        question: "What does ROI stand for?",
+        options: ["Rate of Inflation", "Return on Investment", "Risk over Income", "Ratio of Interest"],
+        answer: 1,
+    },
+    {
+        question: "Which of the following is considered a 'fixed expense'?",
+        options: ["Monthly rent", "Groceries", "Entertainment", "Gas for your car"],
+        answer: 0,
+    },
+    {
+        question: "What is compound interest?",
+        options: ["Interest you pay on credit cards", "Interest calculated only on the initial principal", "Interest earned on both the principal and the accumulated interest", "A type of tax"],
+        answer: 2,
+    },
+    {
+        question: "What is the purpose of a credit score?",
+        options: ["To determine your tax bracket", "To show how much money you have in the bank", "To track your daily spending", "To measure your creditworthiness and likelihood to repay debt"],
+        answer: 3,
+    },
+    {
+        question: "What is a 'bull market'?",
+        options: ["A market where prices are falling", "A market where prices are rising", "A market only for agricultural goods", "A market with no trading activity"],
+        answer: 1,
+    },
+    {
+        question: "What does it mean to 'diversify' your investments?",
+        options: ["Putting all your money into one successful company", "Spreading your money across different types of investments to reduce risk", "Only investing in international stocks", "Keeping all your money in a savings account"],
+        answer: 1,
+    },
+    {
+        question: "Which asset is generally considered the most 'liquid'?",
+        options: ["Real Estate", "A 10-year Treasury Bond", "Cash in a checking account", "Collectibles (like art or trading cards)"],
+        answer: 2,
+    },
+    {
+        question: "What is inflation?",
+        options: ["The general increase in prices and fall in the purchasing power of money", "When a balloon pops", "A sudden increase in your paycheck", "The interest paid on savings accounts"],
+        answer: 0,
+    },
+    {
+        question: "What does 'pay yourself first' mean in budgeting?",
+        options: ["Buying things you want before paying bills", "Setting aside a portion of your income for savings or investing before paying any other expenses", "Paying your own salary if you own a business", "Taking out a cash advance"],
+        answer: 1,
+    }
+];
 let currentQuizIndex = 0;
 
-async function loadQuiz() {
-    try {
-        const response = await fetch('http://127.0.0.1:8081/api/quiz');
-        quizData = await response.json();
-        currentQuizIndex = 0;
-        renderQuiz();
-    } catch (e) {
-        document.getElementById('quiz-container').innerHTML = "<p>Simulated Go Server Offline (Waiting for Sidecar)</p>";
-    }
+function loadQuiz() {
+    currentQuizIndex = 0;
+    renderQuiz();
 }
 
 function renderQuiz() {

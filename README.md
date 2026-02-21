@@ -11,16 +11,15 @@ Financial Golf is built with an absolute priority on **Security** and **Performa
 ### 🔒 Zero-Trust Rust Sandbox
 The core of the application is wrapped in a **Tauri (Rust)** container. This provides:
 - **Strict File-System Isolation**: The app cannot read or write to arbitrary folders on the user's computer, preventing any ransomware attempts.
-- **Inter-Process Communication (IPC)**: Securely manages and spawns our backend engines without exposing them to the internet.
 
-### 🧮 High-Performance Python Math Engine
-Financial calculations require precision. We utilize a dedicated **Python Sidecar** running locally to handle:
+### 🧮 High-Performance Native Math Engine
+Financial calculations require precision. We utilize a fast local JavaScript engine to handle:
 - **Compound Interest Simulations**: Accurately project wealth growth over time.
-- **Budgeting Algorithms**: Core financial logic abstracted away from the UI for integrity.
+- **Budgeting Algorithms**: Core financial logic running natively and swiftly.
 
-### 🧠 Go Quiz Microservice
-Education requires speed and concurrency. Our **Go Content Engine** serves:
-- **Daily Financial Quizzes**: Fast, concurrent REST API delivering randomized questions about emergency funds, stocks, and personal finance rules.
+### 🧠 Native Quiz Engine
+Education requires speed and concurrency. Our front-end natively serves:
+- **Daily Financial Quizzes**: Fast, randomized questions about emergency funds, stocks, and personal finance rules without any network lag at all.
 
 ### 🎨 Modern Glassmorphism UI
 The user interface is built with vanilla HTML/CSS/JS, focusing on a **stunning, premium aesthetic**:
@@ -29,15 +28,13 @@ The user interface is built with vanilla HTML/CSS/JS, focusing on a **stunning, 
 - Vibrant, engaging animations using the `Outfit` font family.
 
 ### 🤫 The Hidden "Golf" Minigame
-What's an educational app without a little fun? Embedded deep within the application is a hidden Canvas-based 2D Golf game!
+What's an educational app without a little fun? Embedded deep within the application is a hidden Canvas-based 2D Golf game featuring drag-and-shoot slingshot physics!
 - **How to Unlock**: Use the classic Konami Code (`Up, Up, Down, Down, Left, Right, Left, Right, B, A`) on your keyboard while the app is focused to take a break and play a round of golf!
 
 ## ⚙️ Architecture details
 
 - **Frontend**: HTML5, CSS3 (Glassmorphic Design), Vanilla JavaScript
 - **App Wrapper**: Rust (Tauri 1.x)
-- **Financial Backend**: Python 3 (Flask)
-- **Quiz Backend**: Go (net/http)
 - **CI/CD**: GitHub Actions (Zero-Local-Toolchain Cloud Compilation)
 
 ---

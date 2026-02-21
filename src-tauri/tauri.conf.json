@@ -13,22 +13,6 @@
     "tauri": {
         "allowlist": {
             "all": false,
-            "shell": {
-                "all": false,
-                "open": true,
-                "sidecar": true,
-                "execute": true,
-                "scope": [
-                    {
-                        "name": "go-engine",
-                        "sidecar": true
-                    },
-                    {
-                        "name": "python-engine",
-                        "sidecar": true
-                    }
-                ]
-            },
             "fs": {
                 "all": false,
                 "scope": [
@@ -46,10 +30,6 @@
                 "icons/128x128@2x.png",
                 "icons/icon.icns",
                 "icons/icon.ico"
-            ],
-            "externalBin": [
-                "bin/go-engine",
-                "bin/python-engine"
             ]
         },
         "security": {

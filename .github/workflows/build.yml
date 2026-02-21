@@ -13,32 +13,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-      
-      - name: Build Go Backend
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path src-tauri/bin
-          cd go-engine
-          go build -ldflags "-s -w" -o ../src-tauri/bin/go-engine-x86_64-pc-windows-msvc.exe main.go
-          
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          
-      - name: Build Python Backend
-        shell: pwsh
-        run: |
-          cd python-engine
-          python -m pip install --upgrade pip
-          pip install pyinstaller
-          if (Test-Path requirements.txt) { pip install -r requirements.txt }
-          pyinstaller --onefile --noconsole --distpath ../src-tauri/bin --name python-engine-x86_64-pc-windows-msvc main.py
-          
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
