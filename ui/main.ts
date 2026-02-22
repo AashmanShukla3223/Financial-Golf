@@ -1,22 +1,31 @@
+// @ts-ignore - Tauri defined at runtime in index.html
 const { invoke } = window.__TAURI__.tauri;
+// @ts-ignore
 const { listen } = window.__TAURI__.event;
+
+import type { InterestResult } from './bindings/InterestResult';
+import type { QuizResponse } from './bindings/QuizResponse';
+import type { Ball } from './bindings/Ball';
+import type { GolfRenderState } from './bindings/GolfRenderState';
+import type { TableRow } from './bindings/TableRow';
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Listen for async Rust calculations
+    // @ts-ignore
     await listen('table-calculated', (event) => {
-        const tableData = event.payload;
-        const currency = document.getElementById('currency').value;
+        const tableData: TableRow[] = event.payload;
+        const currency = (document.getElementById('currency') as HTMLSelectElement).value;
         let html = '<table class="data-table"><tr><th>Year</th><th>Age</th><th>Balance</th></tr>';
         tableData.forEach(row => {
             html += `<tr><td>${row.year}</td><td>${row.age}</td><td>${currency}${row.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
         });
         html += '</table>';
-        document.getElementById('table-container').innerHTML = html;
+        document.getElementById('table-container')!.innerHTML = html;
     });
     // 1. Check Rust IPC Security Status
     try {
-        const status = await invoke('get_security_status');
-        const badge = document.getElementById('security-status');
+        const status: string = await invoke('get_security_status');
+        const badge = document.getElementById('security-status')!;
         badge.textContent = status;
         badge.className = 'status-badge secure';
     } catch (e) {
@@ -38,39 +47,41 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function calculateInterest() {
-    const principal = parseFloat(document.getElementById('principal').value);
-    const currency = document.getElementById('currency').value;
-    const currentAge = parseInt(document.getElementById('current-age').value) || 18;
-    const duration = parseInt(document.getElementById('duration').value) || 10;
-    const ratePercent = parseFloat(document.getElementById('rate').value) || 8;
+    const principal = parseFloat((document.getElementById('principal') as HTMLInputElement).value);
+    const currency = (document.getElementById('currency') as HTMLSelectElement).value;
+    const currentAge = parseInt((document.getElementById('current-age') as HTMLInputElement).value) || 18;
+    const duration = parseInt((document.getElementById('duration') as HTMLInputElement).value) || 10;
+    const ratePercent = parseFloat((document.getElementById('rate') as HTMLInputElement).value) || 8;
 
     try {
-        const data = await invoke('calculate_interest', { principal, currentAge, duration, ratePercent });
+        const data: InterestResult = await invoke('calculate_interest', { principal, currentAge, duration, ratePercent });
 
-        document.getElementById('interest-result').innerText =
+        document.getElementById('interest-result')!.innerText =
             `By age ${data.final_age} (${duration} years at ${ratePercent}%):\n${currency}${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     } catch (e) {
-        document.getElementById('interest-result').innerText = `Rust Error: ${e}`;
+        document.getElementById('interest-result')!.innerText = `Rust Error: ${e}`;
         console.error(e);
     }
 }
 
-async function calculateTable() {
-    document.getElementById('table-container').innerHTML = "<p>Rust is generating the 30-year table asynchronously...</p>";
-    const principal = parseFloat(document.getElementById('principal').value);
-    const currentAge = parseInt(document.getElementById('current-age').value) || 18;
-    const duration = parseInt(document.getElementById('duration').value) || 30;
-    const ratePercent = parseFloat(document.getElementById('rate').value) || 8;
+// @ts-ignore
+window.calculateTable = async function () {
+    document.getElementById('table-container')!.innerHTML = "<p>Rust is generating the 30-year table asynchronously...</p>";
+    const principal = parseFloat((document.getElementById('principal') as HTMLInputElement).value);
+    const currentAge = parseInt((document.getElementById('current-age') as HTMLInputElement).value) || 18;
+    const duration = parseInt((document.getElementById('duration') as HTMLInputElement).value) || 30;
+    const ratePercent = parseFloat((document.getElementById('rate') as HTMLInputElement).value) || 8;
 
     try {
         await invoke('calculate_table_async', { principal, currentAge, duration, ratePercent });
     } catch (e) {
-        document.getElementById('table-container').innerHTML = `<p>Rust Error: ${e}</p>`;
+        document.getElementById('table-container')!.innerHTML = `<p>Rust Error: ${e}</p>`;
         console.error(e);
     }
 }
 
-async function loadQuiz() {
+// @ts-ignore
+window.loadQuiz = async function () {
     await invoke('reset_quiz');
     renderQuiz();
 }
@@ -159,7 +170,7 @@ async function initGolf() {
 
     async function update() {
         if (gameState === 'moving') {
-            const stateInfo = await invoke('update_golf_physics');
+            const stateInfo: GolfRenderState = await invoke('update_golf_physics');
             ball = stateInfo.ball;
             gameState = stateInfo.game_state;
         }

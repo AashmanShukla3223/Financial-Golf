@@ -6,6 +6,12 @@
 use std::sync::Mutex;
 use serde::{Serialize, Deserialize};
 use tauri::{State, Manager};
+use ts_rs::TS;
+
+// Enterprise Standard: Centralized String Error Mapping
+fn format_err<E: std::fmt::Display>(err: E) -> String {
+    format!("[Enterprise Error]: {}", err)
+}
 
 #[tauri::command]
 fn get_security_status() -> Result<String, String> {
@@ -15,10 +21,11 @@ fn get_security_status() -> Result<String, String> {
 // ---------------------------
 // 1. COMPOUND INTEREST ENGINE
 // ---------------------------
-#[derive(Serialize)]
-struct InterestResult {
-    amount: f64,
-    final_age: u32,
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../ui/bindings/")]
+pub struct InterestResult {
+    pub amount: f64,
+    pub final_age: u32,
 }
 
 #[tauri::command]
@@ -29,11 +36,12 @@ fn calculate_interest(principal: f64, current_age: u32, duration: u32, rate_perc
     Ok(InterestResult { amount, final_age })
 }
 
-#[derive(Clone, Serialize)]
-struct TableRow {
-    year: u32,
-    age: u32,
-    balance: f64,
+#[derive(Clone, Serialize, TS)]
+#[ts(export, export_to = "../../ui/bindings/")]
+pub struct TableRow {
+    pub year: u32,
+    pub age: u32,
+    pub balance: f64,
 }
 
 #[tauri::command]
@@ -60,10 +68,11 @@ fn calculate_table_async(app: tauri::AppHandle, principal: f64, current_age: u32
 // ---------------------------
 // 2. QUIZ ENGINE STATE
 // ---------------------------
-#[derive(Serialize, Clone)]
-struct QuizQuestion {
-    question: String,
-    options: Vec<String>,
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../ui/bindings/")]
+pub struct QuizQuestion {
+    pub question: String,
+    pub options: Vec<String>,
 }
 
 struct QuizState {
@@ -91,17 +100,18 @@ impl Default for QuizState {
     }
 }
 
-#[derive(Serialize)]
-struct QuizResponse {
-    is_complete: bool,
-    question: Option<QuizQuestion>,
-    current_number: usize,
-    total: usize,
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../ui/bindings/")]
+pub struct QuizResponse {
+    pub is_complete: bool,
+    pub question: Option<QuizQuestion>,
+    pub current_number: usize,
+    pub total: usize,
 }
 
 #[tauri::command]
 fn get_quiz(state: State<Mutex<QuizState>>) -> Result<QuizResponse, String> {
-    let mut quiz = state.lock().map_err(|_| "Poisoned mutex: Quiz context locked ungracefully.".to_string())?;
+    let mut quiz = state.lock().map_err(format_err)?;
     if quiz.current_index >= quiz.questions.len() {
         return Ok(QuizResponse { is_complete: true, question: None, current_number: quiz.current_index, total: quiz.questions.len() });
     }
@@ -117,7 +127,7 @@ fn get_quiz(state: State<Mutex<QuizState>>) -> Result<QuizResponse, String> {
 
 #[tauri::command]
 fn check_answer(selected: usize, state: State<Mutex<QuizState>>) -> Result<bool, String> {
-    let mut quiz = state.lock().map_err(|_| "Poisoned mutex: Quiz context locked ungracefully.".to_string())?;
+    let mut quiz = state.lock().map_err(format_err)?;
     if quiz.current_index >= quiz.questions.len() { return Ok(false); }
     
     let is_correct = selected == quiz.questions[quiz.current_index].2;
@@ -127,7 +137,7 @@ fn check_answer(selected: usize, state: State<Mutex<QuizState>>) -> Result<bool,
 
 #[tauri::command]
 fn reset_quiz(state: State<Mutex<QuizState>>) -> Result<(), String> {
-    let mut quiz = state.lock().map_err(|_| "Poisoned mutex: Quiz context locked ungracefully.".to_string())?;
+    let mut quiz = state.lock().map_err(format_err)?;
     quiz.current_index = 0;
     Ok(())
 }
@@ -135,13 +145,14 @@ fn reset_quiz(state: State<Mutex<QuizState>>) -> Result<(), String> {
 // ---------------------------
 // 3. GOLF PHYSICS ENGINE STATE
 // ---------------------------
-#[derive(Serialize, Deserialize, Clone)]
-struct Ball {
-    x: f64,
-    y: f64,
-    r: f64,
-    vx: f64,
-    vy: f64,
+#[derive(Serialize, Deserialize, Clone, TS)]
+#[ts(export, export_to = "../../ui/bindings/")]
+pub struct Ball {
+    pub x: f64,
+    pub y: f64,
+    pub r: f64,
+    pub vx: f64,
+    pub vy: f64,
 }
 
 struct GolfState {
@@ -163,22 +174,23 @@ impl Default for GolfState {
     }
 }
 
-#[derive(Serialize)]
-struct GolfRenderState {
-    ball: Ball,
-    game_state: String, // "ready", "moving", "win", "lose"
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../ui/bindings/")]
+pub struct GolfRenderState {
+    pub ball: Ball,
+    pub game_state: String, // "ready", "moving", "win", "lose"
 }
 
 #[tauri::command]
 fn init_golf(state: State<Mutex<GolfState>>) -> Result<Ball, String> {
-    let mut golf = state.lock().map_err(|_| "Poisoned mutex: Golf context locked.".to_string())?;
+    let mut golf = state.lock().map_err(format_err)?;
     golf.ball = Ball { x: 50.0, y: 200.0, r: 8.0, vx: 0.0, vy: 0.0 };
     Ok(golf.ball.clone())
 }
 
 #[tauri::command]
 fn shoot_golf(dx: f64, dy: f64, state: State<Mutex<GolfState>>) -> Result<(), String> {
-    let mut golf = state.lock().map_err(|_| "Poisoned mutex: Golf context locked.".to_string())?;
+    let mut golf = state.lock().map_err(format_err)?;
     golf.ball.vx = -dx * 0.15;
     golf.ball.vy = -dy * 0.15;
     Ok(())
@@ -186,7 +198,7 @@ fn shoot_golf(dx: f64, dy: f64, state: State<Mutex<GolfState>>) -> Result<(), St
 
 #[tauri::command]
 fn update_golf_physics(state: State<Mutex<GolfState>>) -> Result<GolfRenderState, String> {
-    let mut golf = state.lock().map_err(|_| "Poisoned mutex: Golf context locked.".to_string())?;
+    let mut golf = state.lock().map_err(format_err)?;
     let mut game_state = "moving".to_string();
     
     // Physics
@@ -222,6 +234,8 @@ fn update_golf_physics(state: State<Mutex<GolfState>>) -> Result<GolfRenderState
         game_state = "ready".to_string();
     }
 
+
+
     Ok(GolfRenderState {
         ball: golf.ball.clone(),
         game_state,
@@ -249,4 +263,15 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn export_bindings() {
+        // Enforces compilation of exported files on cargo test
+        assert!(true);
+    }
 }

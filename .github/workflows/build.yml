@@ -27,6 +27,15 @@ jobs:
           targets: x86_64-pc-windows-msvc
           toolchain: stable
           
+      - name: Generate TS Bindings (ts-rs)
+        shell: pwsh
+        run: |
+          cd src-tauri
+          cargo test
+          
+      - name: Build TypeScript Frontend
+        run: npm run build
+          
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:

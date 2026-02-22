@@ -4,12 +4,14 @@
   "description": "Educational Money Management App",
   "main": "index.js",
   "scripts": {
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build": "tsc"
   },
   "dependencies": {
     "@tauri-apps/api": "^1.5.3"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^1.5.11"
+    "@tauri-apps/cli": "^1.5.11",
+    "typescript": "^5.0.0"
   }
 }
