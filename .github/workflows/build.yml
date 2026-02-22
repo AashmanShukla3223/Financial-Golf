@@ -27,6 +27,11 @@ jobs:
           targets: x86_64-pc-windows-msvc
           toolchain: stable
           
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          
       - name: Generate TS Bindings (ts-rs)
         shell: pwsh
         run: |
@@ -40,6 +45,12 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Tauri Updater
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          # Windows Authenticode to bypass Microsoft SmartScreen
+          CERTIFICATE_BLOB: ${{ secrets.CERTIFICATE_BLOB }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: 'Financial Golf Windows Release'
