@@ -9,10 +9,17 @@ import type { Ball } from './bindings/Ball';
 import type { GolfRenderState } from './bindings/GolfRenderState';
 import type { TableRow } from './bindings/TableRow';
 
+// Store event unlisteners for cleanup on unmount
+const unlisteners: Array<() => void> = [];
+
+window.addEventListener('beforeunload', () => {
+    unlisteners.forEach(unlistener => unlistener());
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Listen for async Rust calculations
     // @ts-ignore
-    await listen('table-calculated', (event) => {
+    const unlistenTable = await listen('table-calculated', (event) => {
         const tableData: TableRow[] = event.payload;
         const currency = (document.getElementById('currency') as HTMLSelectElement).value;
         let html = '<table class="data-table"><tr><th>Year</th><th>Age</th><th>Balance</th></tr>';
@@ -21,7 +28,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         html += '</table>';
         document.getElementById('table-container')!.innerHTML = html;
+        const btn = document.getElementById('btn-calc-table') as HTMLButtonElement;
+        if (btn) btn.disabled = false;
     });
+    unlisteners.push(unlistenTable);
+
     // 1. Check Rust IPC Security Status
     try {
         const status: string = await invoke('get_security_status');
@@ -47,6 +58,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function calculateInterest() {
+    const btn = document.getElementById('btn-calc-interest') as HTMLButtonElement;
+    if (btn) btn.disabled = true;
+
     const principal = parseFloat((document.getElementById('principal') as HTMLInputElement).value);
     const currency = (document.getElementById('currency') as HTMLSelectElement).value;
     const currentAge = parseInt((document.getElementById('current-age') as HTMLInputElement).value) || 18;
@@ -61,11 +75,16 @@ async function calculateInterest() {
     } catch (e) {
         document.getElementById('interest-result')!.innerText = `Rust Error: ${e}`;
         console.error(e);
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
 
 // @ts-ignore
 window.calculateTable = async function () {
+    const btn = document.getElementById('btn-calc-table') as HTMLButtonElement;
+    if (btn) btn.disabled = true;
+
     document.getElementById('table-container')!.innerHTML = "<p>Rust is generating the 30-year table asynchronously...</p>";
     const principal = parseFloat((document.getElementById('principal') as HTMLInputElement).value);
     const currentAge = parseInt((document.getElementById('current-age') as HTMLInputElement).value) || 18;
@@ -77,6 +96,7 @@ window.calculateTable = async function () {
     } catch (e) {
         document.getElementById('table-container')!.innerHTML = `<p>Rust Error: ${e}</p>`;
         console.error(e);
+        if (btn) btn.disabled = false; // Re-enable if error, otherwise event listener re-enables it
     }
 }
 
