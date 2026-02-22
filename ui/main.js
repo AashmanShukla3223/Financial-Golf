@@ -1,6 +1,18 @@
 const { invoke } = window.__TAURI__.tauri;
+const { listen } = window.__TAURI__.event;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Listen for async Rust calculations
+    await listen('table-calculated', (event) => {
+        const tableData = event.payload;
+        const currency = document.getElementById('currency').value;
+        let html = '<table class="data-table"><tr><th>Year</th><th>Age</th><th>Balance</th></tr>';
+        tableData.forEach(row => {
+            html += `<tr><td>${row.year}</td><td>${row.age}</td><td>${currency}${row.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+        });
+        html += '</table>';
+        document.getElementById('table-container').innerHTML = html;
+    });
     // 1. Check Rust IPC Security Status
     try {
         const status = await invoke('get_security_status');
@@ -38,7 +50,23 @@ async function calculateInterest() {
         document.getElementById('interest-result').innerText =
             `By age ${data.final_age} (${duration} years at ${ratePercent}%):\n${currency}${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     } catch (e) {
-        document.getElementById('interest-result').innerText = "Error calculating interest natively.";
+        document.getElementById('interest-result').innerText = `Rust Error: ${e}`;
+        console.error(e);
+    }
+}
+
+async function calculateTable() {
+    document.getElementById('table-container').innerHTML = "<p>Rust is generating the 30-year table asynchronously...</p>";
+    const principal = parseFloat(document.getElementById('principal').value);
+    const currentAge = parseInt(document.getElementById('current-age').value) || 18;
+    const duration = parseInt(document.getElementById('duration').value) || 30;
+    const ratePercent = parseFloat(document.getElementById('rate').value) || 8;
+
+    try {
+        await invoke('calculate_table_async', { principal, currentAge, duration, ratePercent });
+    } catch (e) {
+        document.getElementById('table-container').innerHTML = `<p>Rust Error: ${e}</p>`;
+        console.error(e);
     }
 }
 

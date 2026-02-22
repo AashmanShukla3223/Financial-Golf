@@ -5,11 +5,11 @@
 
 use std::sync::Mutex;
 use serde::{Serialize, Deserialize};
-use tauri::State;
+use tauri::{State, Manager};
 
 #[tauri::command]
-fn get_security_status() -> String {
-    "Ransomware Protection: Active. App is sandboxed. All OS hooks restricted.".to_string()
+fn get_security_status() -> Result<String, String> {
+    Ok("Ransomware Protection: Active. App is sandboxed. All OS hooks restricted.".to_string())
 }
 
 // ---------------------------
@@ -22,11 +22,39 @@ struct InterestResult {
 }
 
 #[tauri::command]
-fn calculate_interest(principal: f64, current_age: u32, duration: u32, rate_percent: f64) -> InterestResult {
+fn calculate_interest(principal: f64, current_age: u32, duration: u32, rate_percent: f64) -> Result<InterestResult, String> {
     let rate = rate_percent / 100.0;
     let amount = principal * (1.0 + rate).powi(duration as i32);
     let final_age = current_age + duration;
-    InterestResult { amount, final_age }
+    Ok(InterestResult { amount, final_age })
+}
+
+#[derive(Clone, Serialize)]
+struct TableRow {
+    year: u32,
+    age: u32,
+    balance: f64,
+}
+
+#[tauri::command]
+fn calculate_table_async(app: tauri::AppHandle, principal: f64, current_age: u32, duration: u32, rate_percent: f64) -> Result<(), String> {
+    std::thread::spawn(move || {
+        let rate = rate_percent / 100.0;
+        let mut table = Vec::new();
+        let mut current_balance = principal;
+        for year in 1..=duration {
+            current_balance *= 1.0 + rate;
+            table.push(TableRow {
+                year,
+                age: current_age + year,
+                balance: current_balance,
+            });
+            // Simulate intensive calculation block without freezing the main thread
+            std::thread::sleep(std::time::Duration::from_millis(15));
+        }
+        let _ = app.emit_all("table-calculated", table);
+    });
+    Ok(())
 }
 
 // ---------------------------
@@ -72,35 +100,36 @@ struct QuizResponse {
 }
 
 #[tauri::command]
-fn get_quiz(state: State<Mutex<QuizState>>) -> QuizResponse {
-    let mut quiz = state.lock().unwrap();
+fn get_quiz(state: State<Mutex<QuizState>>) -> Result<QuizResponse, String> {
+    let mut quiz = state.lock().map_err(|_| "Poisoned mutex: Quiz context locked ungracefully.".to_string())?;
     if quiz.current_index >= quiz.questions.len() {
-        return QuizResponse { is_complete: true, question: None, current_number: quiz.current_index, total: quiz.questions.len() };
+        return Ok(QuizResponse { is_complete: true, question: None, current_number: quiz.current_index, total: quiz.questions.len() });
     }
     
     let current_q = &quiz.questions[quiz.current_index];
-    QuizResponse {
+    Ok(QuizResponse {
         is_complete: false,
         question: Some(QuizQuestion { question: current_q.0.clone(), options: current_q.1.clone() }),
         current_number: quiz.current_index + 1,
         total: quiz.questions.len(),
-    }
+    })
 }
 
 #[tauri::command]
-fn check_answer(selected: usize, state: State<Mutex<QuizState>>) -> bool {
-    let mut quiz = state.lock().unwrap();
-    if quiz.current_index >= quiz.questions.len() { return false; }
+fn check_answer(selected: usize, state: State<Mutex<QuizState>>) -> Result<bool, String> {
+    let mut quiz = state.lock().map_err(|_| "Poisoned mutex: Quiz context locked ungracefully.".to_string())?;
+    if quiz.current_index >= quiz.questions.len() { return Ok(false); }
     
     let is_correct = selected == quiz.questions[quiz.current_index].2;
     quiz.current_index += 1;
-    is_correct
+    Ok(is_correct)
 }
 
 #[tauri::command]
-fn reset_quiz(state: State<Mutex<QuizState>>) {
-    let mut quiz = state.lock().unwrap();
+fn reset_quiz(state: State<Mutex<QuizState>>) -> Result<(), String> {
+    let mut quiz = state.lock().map_err(|_| "Poisoned mutex: Quiz context locked ungracefully.".to_string())?;
     quiz.current_index = 0;
+    Ok(())
 }
 
 // ---------------------------
@@ -141,22 +170,23 @@ struct GolfRenderState {
 }
 
 #[tauri::command]
-fn init_golf(state: State<Mutex<GolfState>>) -> Ball {
-    let mut golf = state.lock().unwrap();
+fn init_golf(state: State<Mutex<GolfState>>) -> Result<Ball, String> {
+    let mut golf = state.lock().map_err(|_| "Poisoned mutex: Golf context locked.".to_string())?;
     golf.ball = Ball { x: 50.0, y: 200.0, r: 8.0, vx: 0.0, vy: 0.0 };
-    golf.ball.clone()
+    Ok(golf.ball.clone())
 }
 
 #[tauri::command]
-fn shoot_golf(dx: f64, dy: f64, state: State<Mutex<GolfState>>) {
-    let mut golf = state.lock().unwrap();
+fn shoot_golf(dx: f64, dy: f64, state: State<Mutex<GolfState>>) -> Result<(), String> {
+    let mut golf = state.lock().map_err(|_| "Poisoned mutex: Golf context locked.".to_string())?;
     golf.ball.vx = -dx * 0.15;
     golf.ball.vy = -dy * 0.15;
+    Ok(())
 }
 
 #[tauri::command]
-fn update_golf_physics(state: State<Mutex<GolfState>>) -> GolfRenderState {
-    let mut golf = state.lock().unwrap();
+fn update_golf_physics(state: State<Mutex<GolfState>>) -> Result<GolfRenderState, String> {
+    let mut golf = state.lock().map_err(|_| "Poisoned mutex: Golf context locked.".to_string())?;
     let mut game_state = "moving".to_string();
     
     // Physics
@@ -192,10 +222,10 @@ fn update_golf_physics(state: State<Mutex<GolfState>>) -> GolfRenderState {
         game_state = "ready".to_string();
     }
 
-    GolfRenderState {
+    Ok(GolfRenderState {
         ball: golf.ball.clone(),
         game_state,
-    }
+    })
 }
 
 fn main() {
@@ -209,6 +239,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_security_status,
             calculate_interest,
+            calculate_table_async,
             get_quiz,
             check_answer,
             reset_quiz,
