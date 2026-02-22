@@ -107,23 +107,24 @@ window.loadQuiz = async function () {
 }
 
 async function renderQuiz() {
-    const quizResponse = await invoke('get_quiz');
+    const quizResponse: QuizResponse = await invoke('get_quiz');
 
     if (quizResponse.is_complete) {
-        document.getElementById('quiz-container').innerHTML = "<h3>Quiz Complete! 🎉</h3><p>You have answered all 10 questions.</p><button onclick='loadQuiz()'>Restart Quiz</button>";
+        document.getElementById('quiz-container')!.innerHTML = "<h3>Quiz Complete! 🎉</h3><p>You have answered all 10 questions.</p><button onclick='loadQuiz()'>Restart Quiz</button>";
         return;
     }
 
     const q = quizResponse.question;
-    let html = `<p><strong>Question ${quizResponse.current_number}/${quizResponse.total}: ${q.question}</strong></p>`;
-    q.options.forEach((opt, idx) => {
+    let html = `<p><strong>Question ${quizResponse.current_number}/${quizResponse.total}: ${q?.question}</strong></p>`;
+    q?.options.forEach((opt: string, idx: number) => {
         html += `<button onclick="checkAnswer(${idx})">${opt}</button>`;
     });
-    document.getElementById('quiz-container').innerHTML = html;
+    document.getElementById('quiz-container')!.innerHTML = html;
 }
 
-window.checkAnswer = async function (selectedIndex) {
-    const isCorrect = await invoke('check_answer', { selected: selectedIndex });
+// @ts-ignore
+window.checkAnswer = async function (selectedIndex: number) {
+    const isCorrect: boolean = await invoke('check_answer', { selected: selectedIndex });
     if (isCorrect) {
         alert('Correct!');
     } else {

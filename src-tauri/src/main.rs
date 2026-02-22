@@ -7,6 +7,8 @@ use std::sync::Mutex;
 use serde::{Serialize, Deserialize};
 use tauri::{State, Manager};
 use ts_rs::TS;
+use sha2::{Sha256, Digest};
+use hex;
 
 // Enterprise Standard: Centralized String Error Mapping
 fn format_err<E: std::fmt::Display>(err: E) -> String {
@@ -66,8 +68,16 @@ fn calculate_table_async(app: tauri::AppHandle, principal: f64, current_age: u32
 }
 
 // ---------------------------
-// 2. QUIZ ENGINE STATE
+// 2. QUIZ ENGINE STATE (Cryptographer Enabled)
 // ---------------------------
+const SALT: &str = "f1n4nc14Lg0Lf_s4Lt_v1";
+
+fn compute_hash(index: usize) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(format!("{}{}", SALT, index));
+    hex::encode(hasher.finalize())
+}
+
 #[derive(Serialize, Clone, TS)]
 #[ts(export, export_to = "../../ui/bindings/")]
 pub struct QuizQuestion {
@@ -77,7 +87,7 @@ pub struct QuizQuestion {
 
 struct QuizState {
     current_index: usize,
-    questions: Vec<(String, Vec<String>, usize)>, // (Question, Options, AnswerIndex)
+    questions: Vec<(String, Vec<String>, String)>, // (Question, Options, HashedAnswerIndex)
 }
 
 impl Default for QuizState {
@@ -85,16 +95,26 @@ impl Default for QuizState {
         Self {
             current_index: 0,
             questions: vec![
-                ("What is an emergency fund?".to_string(), vec!["Money for buying a new video game".to_string(), "Savings specifically for unexpected expenses".to_string(), "A loan from the bank".to_string(), "Money you invest in the stock market".to_string()], 1),
-                ("What does ROI stand for?".to_string(), vec!["Rate of Inflation".to_string(), "Return on Investment".to_string(), "Risk over Income".to_string(), "Ratio of Interest".to_string()], 1),
-                ("Which of the following is considered a 'fixed expense'?".to_string(), vec!["Monthly rent".to_string(), "Groceries".to_string(), "Entertainment".to_string(), "Gas for your car".to_string()], 0),
-                ("What is compound interest?".to_string(), vec!["Interest you pay on credit cards".to_string(), "Interest calculated only on the initial principal".to_string(), "Interest earned on both the principal and the accumulated interest".to_string(), "A type of tax".to_string()], 2),
-                ("What is the purpose of a credit score?".to_string(), vec!["To determine your tax bracket".to_string(), "To show how much money you have in the bank".to_string(), "To track your daily spending".to_string(), "To measure your creditworthiness and likelihood to repay debt".to_string()], 3),
-                ("What is a 'bull market'?".to_string(), vec!["A market where prices are falling".to_string(), "A market where prices are rising".to_string(), "A market only for agricultural goods".to_string(), "A market with no trading activity".to_string()], 1),
-                ("What does it mean to 'diversify' your investments?".to_string(), vec!["Putting all your money into one successful company".to_string(), "Spreading your money across different types of investments to reduce risk".to_string(), "Only investing in international stocks".to_string(), "Keeping all your money in a savings account".to_string()], 1),
-                ("Which asset is generally considered the most 'liquid'?".to_string(), vec!["Real Estate".to_string(), "A 10-year Treasury Bond".to_string(), "Cash in a checking account".to_string(), "Collectibles (like art or trading cards)".to_string()], 2),
-                ("What is inflation?".to_string(), vec!["The general increase in prices and fall in the purchasing power of money".to_string(), "When a balloon pops".to_string(), "A sudden increase in your paycheck".to_string(), "The interest paid on savings accounts".to_string()], 0),
-                ("What does 'pay yourself first' mean in budgeting?".to_string(), vec!["Buying things you want before paying bills".to_string(), "Setting aside a portion of your income for savings or investing before paying any other expenses".to_string(), "Paying your own salary if you own a business".to_string(), "Taking out a cash advance".to_string()], 1),
+                // Index 1
+                ("What is an emergency fund?".to_string(), vec!["Money for buying a new video game".to_string(), "Savings specifically for unexpected expenses".to_string(), "A loan from the bank".to_string(), "Money you invest in the stock market".to_string()], compute_hash(1)),
+                // Index 1
+                ("What does ROI stand for?".to_string(), vec!["Rate of Inflation".to_string(), "Return on Investment".to_string(), "Risk over Income".to_string(), "Ratio of Interest".to_string()], compute_hash(1)),
+                // Index 0
+                ("Which of the following is considered a 'fixed expense'?".to_string(), vec!["Monthly rent".to_string(), "Groceries".to_string(), "Entertainment".to_string(), "Gas for your car".to_string()], compute_hash(0)),
+                // Index 2
+                ("What is compound interest?".to_string(), vec!["Interest you pay on credit cards".to_string(), "Interest calculated only on the initial principal".to_string(), "Interest earned on both the principal and the accumulated interest".to_string(), "A type of tax".to_string()], compute_hash(2)),
+                // Index 3
+                ("What is the purpose of a credit score?".to_string(), vec!["To determine your tax bracket".to_string(), "To show how much money you have in the bank".to_string(), "To track your daily spending".to_string(), "To measure your creditworthiness and likelihood to repay debt".to_string()], compute_hash(3)),
+                // Index 1
+                ("What is a 'bull market'?".to_string(), vec!["A market where prices are falling".to_string(), "A market where prices are rising".to_string(), "A market only for agricultural goods".to_string(), "A market with no trading activity".to_string()], compute_hash(1)),
+                // Index 1
+                ("What does it mean to 'diversify' your investments?".to_string(), vec!["Putting all your money into one successful company".to_string(), "Spreading your money across different types of investments to reduce risk".to_string(), "Only investing in international stocks".to_string(), "Keeping all your money in a savings account".to_string()], compute_hash(1)),
+                // Index 2
+                ("Which asset is generally considered the most 'liquid'?".to_string(), vec!["Real Estate".to_string(), "A 10-year Treasury Bond".to_string(), "Cash in a checking account".to_string(), "Collectibles (like art or trading cards)".to_string()], compute_hash(2)),
+                // Index 0
+                ("What is inflation?".to_string(), vec!["The general increase in prices and fall in the purchasing power of money".to_string(), "When a balloon pops".to_string(), "A sudden increase in your paycheck".to_string(), "The interest paid on savings accounts".to_string()], compute_hash(0)),
+                // Index 1
+                ("What does 'pay yourself first' mean in budgeting?".to_string(), vec!["Buying things you want before paying bills".to_string(), "Setting aside a portion of your income for savings or investing before paying any other expenses".to_string(), "Paying your own salary if you own a business".to_string(), "Taking out a cash advance".to_string()], compute_hash(1)),
             ],
         }
     }
@@ -130,7 +150,9 @@ fn check_answer(selected: usize, state: State<Mutex<QuizState>>) -> Result<bool,
     let mut quiz = state.lock().map_err(format_err)?;
     if quiz.current_index >= quiz.questions.len() { return Ok(false); }
     
-    let is_correct = selected == quiz.questions[quiz.current_index].2;
+    // The Cryptographer Engine: Hash user input and compare strings
+    let hashed_input = compute_hash(selected);
+    let is_correct = hashed_input == quiz.questions[quiz.current_index].2;
     quiz.current_index += 1;
     Ok(is_correct)
 }
