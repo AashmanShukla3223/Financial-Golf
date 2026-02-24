@@ -24,7 +24,7 @@ fn get_security_status() -> Result<String, String> {
 // 1. COMPOUND INTEREST ENGINE
 // ---------------------------
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../ui/bindings/")]
+#[ts(export, export_to = "../ui/bindings/")]
 pub struct InterestResult {
     pub amount: f64,
     pub final_age: u32,
@@ -39,7 +39,7 @@ fn calculate_interest(principal: f64, current_age: u32, duration: u32, rate_perc
 }
 
 #[derive(Clone, Serialize, TS)]
-#[ts(export, export_to = "../../ui/bindings/")]
+#[ts(export, export_to = "../ui/bindings/")]
 pub struct TableRow {
     pub year: u32,
     pub age: u32,
@@ -79,7 +79,7 @@ fn compute_hash(index: usize) -> String {
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../ui/bindings/")]
+#[ts(export, export_to = "../ui/bindings/")]
 pub struct QuizQuestion {
     pub question: String,
     pub options: Vec<String>,
@@ -121,7 +121,7 @@ impl Default for QuizState {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../ui/bindings/")]
+#[ts(export, export_to = "../ui/bindings/")]
 pub struct QuizResponse {
     pub is_complete: bool,
     pub question: Option<QuizQuestion>,
@@ -168,7 +168,7 @@ fn reset_quiz(state: State<Mutex<QuizState>>) -> Result<(), String> {
 // 3. GOLF PHYSICS ENGINE STATE
 // ---------------------------
 #[derive(Serialize, Deserialize, Clone, TS)]
-#[ts(export, export_to = "../../ui/bindings/")]
+#[ts(export, export_to = "../ui/bindings/")]
 pub struct Ball {
     pub x: f64,
     pub y: f64,
@@ -197,7 +197,7 @@ impl Default for GolfState {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../ui/bindings/")]
+#[ts(export, export_to = "../ui/bindings/")]
 pub struct GolfRenderState {
     pub ball: Ball,
     pub game_state: String, // "ready", "moving", "win", "lose"

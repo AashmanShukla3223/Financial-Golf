@@ -44,13 +44,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 2. Secret Konami Code logic for the Golf Game
-    let keys = [];
+    let keys: string[] = [];
     const konami = "ArrowUp,ArrowUp,ArrowDown,ArrowDown,ArrowLeft,ArrowRight,ArrowLeft,ArrowRight,b,a";
     document.addEventListener('keydown', (e) => {
         keys.push(e.key);
         if (keys.length > 10) keys.shift();
         if (keys.join(',') === konami) {
-            document.getElementById('golf-game-overlay').classList.remove('hidden');
+            document.getElementById('golf-game-overlay')!.classList.remove('hidden');
             initGolf(); // Init minigame
             keys = [];
         }
@@ -136,8 +136,9 @@ window.checkAnswer = async function (selectedIndex: number) {
 // Physics-based Golf Minigame
 // Physics-based Golf Engine (Native Rust Backend)
 async function initGolf() {
-    const canvas = document.getElementById('golfCanvas');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.getElementById('golfCanvas') as HTMLCanvasElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
 
     let ball = await invoke('init_golf');
     let hole = { x: 500, y: 200, r: 15 };
@@ -244,5 +245,5 @@ async function initGolf() {
 }
 
 function closeGolf() {
-    document.getElementById('golf-game-overlay').classList.add('hidden');
+    document.getElementById('golf-game-overlay')!.classList.add('hidden');
 }
