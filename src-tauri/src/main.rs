@@ -435,8 +435,8 @@ async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, 
         return Err("API Key not set. Please configure it in settings.".to_string());
     }
 
-    // Using gemini-3.0-flash-latest per user request
-    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash-latest:generateContent?key={}", db.gemini_api_key);
+    // Using gemini-3-flash-preview per user request
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={}", db.gemini_api_key);
     
     // Construct the Gemini API payload
     let payload = serde_json::json!({
