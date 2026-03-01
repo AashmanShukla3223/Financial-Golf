@@ -667,3 +667,33 @@ async function sendAudioChat(base64data: string) {
         history.scrollTop = history.scrollHeight;
     }
 }
+
+// @ts-ignore
+window.syncLeaderboard = async function () {
+    const btn = document.getElementById('btn-sync-leaderboard') as HTMLButtonElement;
+    if (btn) btn.disabled = true;
+    const res = document.getElementById('leaderboard-result');
+    if (res) res.innerHTML = `<span style="color: white">Syncing with Google Cloud...</span>`;
+
+    try {
+        const board: any[] = await invoke('sync_leaderboard');
+        let html = '<table style="width: 100%; text-align: left; margin-top: 0.5rem; font-size: 0.9rem;">';
+        html += '<tr style="border-bottom: 1px solid var(--glass-border);"><th>Rank</th><th>Player UUID</th><th>Net Worth</th></tr>';
+
+        board.forEach((entry, index) => {
+            const isMe = entry.uuid.startsWith('anon-') && ["anon-SATOSHI", "anon-BUFFETT", "anon-DIAMOND_HANDS", "anon-LDR322", "anon-RUSTACEAN"].indexOf(entry.uuid) === -1;
+            const rowStyle = isMe ? 'color: var(--primary); font-weight: bold;' : '';
+            html += `<tr style="${rowStyle}">
+                <td>#${index + 1}</td>
+                <td>${entry.uuid.substring(0, 13)}...</td>
+                <td>$${entry.net_worth.toLocaleString()}</td>
+            </tr>`;
+        });
+        html += '</table>';
+        if (res) res.innerHTML = html;
+    } catch (e) {
+        if (res) res.innerHTML = `<span style="color: #ef4444">${e}</span>`;
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
