@@ -41,6 +41,32 @@ jobs:
       - name: Build TypeScript Frontend
         run: npm run build
           
+      - name: Configure Windows Code Signing
+        shell: pwsh
+        env:
+          CERTIFICATE_BLOB: ${{ secrets.CERTIFICATE_BLOB }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          if (-not $env:CERTIFICATE_BLOB -or -not $env:CERTIFICATE_PASSWORD) {
+            Write-Host "Certificate secrets not found! Skipping signing."
+            exit 0
+          }
+          $certPath = "$env:GITHUB_WORKSPACE\temp.pfx"
+          $bytes = [System.Convert]::FromBase64String($env:CERTIFICATE_BLOB)
+          [System.IO.File]::WriteAllBytes($certPath, $bytes)
+          $secpwd = ConvertTo-SecureString -String $env:CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath $certPath -CertStoreLocation "Cert:\CurrentUser\My" -Password $secpwd
+          Write-Host "Successfully secured certificate with thumbprint: $($cert.Thumbprint)"
+          
+          $jsonPath = "$env:GITHUB_WORKSPACE\src-tauri\tauri.conf.json"
+          $json = Get-Content $jsonPath -Raw | ConvertFrom-Json
+          if ($null -eq $json.tauri.bundle.windows) {
+              $json.tauri.bundle | Add-Member -MemberType NoteProperty -Name 'windows' -Value (New-Object PSObject)
+          }
+          $json.tauri.bundle.windows | Add-Member -MemberType NoteProperty -Name 'certificateThumbprint' -Value $($cert.Thumbprint) -Force
+          $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath
+          Remove-Item $certPath -Force
+
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
@@ -48,9 +74,6 @@ jobs:
           # Tauri Updater
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          # Windows Authenticode to bypass Microsoft SmartScreen
-          CERTIFICATE_BLOB: ${{ secrets.CERTIFICATE_BLOB }}
-          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: 'Financial Golf Windows Release'
