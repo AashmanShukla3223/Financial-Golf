@@ -113,6 +113,16 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
             keys = [];
         }
     });
+    // 3. Pre-load Saved API Key into Settings Input
+    try {
+        const db = yield invoke('get_user_db');
+        if (db && db.gemini_api_key) {
+            document.getElementById('gemini-key-input').value = db.gemini_api_key;
+        }
+    }
+    catch (e) {
+        console.error("Failed to load UserDB on startup:", e);
+    }
 }));
 // @ts-ignore
 window.toggleTheme = function () {

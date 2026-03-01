@@ -110,6 +110,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             keys = [];
         }
     });
+
+    // 3. Pre-load Saved API Key into Settings Input
+    try {
+        const db: any = await invoke('get_user_db');
+        if (db && db.gemini_api_key) {
+            (document.getElementById('gemini-key-input') as HTMLInputElement).value = db.gemini_api_key;
+        }
+    } catch (e) {
+        console.error("Failed to load UserDB on startup:", e);
+    }
 });
 
 // @ts-ignore
