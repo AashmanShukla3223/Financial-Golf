@@ -46,10 +46,10 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
     }
     // 2. Secret Konami Code logic for the Golf Game
     let keys = [];
-    const konami = "ArrowUp,ArrowUp,ArrowDown,ArrowDown,ArrowLeft,ArrowRight,ArrowLeft,ArrowRight,b,a";
+    const konami = "ArrowUp,ArrowUp,ArrowDown,ArrowDown";
     document.addEventListener('keydown', (e) => {
         keys.push(e.key);
-        if (keys.length > 10)
+        if (keys.length > 4)
             keys.shift();
         if (keys.join(',') === konami) {
             document.getElementById('golf-game-overlay').classList.remove('hidden');
