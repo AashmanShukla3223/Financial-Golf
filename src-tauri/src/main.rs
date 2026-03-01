@@ -5,7 +5,6 @@
 
 use std::sync::Mutex;
 use std::fs;
-use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
 use tauri::{State, Manager};
 use ts_rs::TS;
@@ -208,7 +207,7 @@ pub struct QuizResponse {
 
 #[tauri::command]
 fn get_quiz(state: State<Mutex<QuizState>>) -> Result<QuizResponse, String> {
-    let mut quiz = state.lock().map_err(format_err)?;
+    let quiz = state.lock().map_err(format_err)?;
     if quiz.current_index >= quiz.questions.len() {
         return Ok(QuizResponse { is_complete: true, question: None, current_number: quiz.current_index, total: quiz.questions.len() });
     }
@@ -438,7 +437,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn export_bindings() {
