@@ -402,11 +402,11 @@ async fn fetch_stock_price(ticker: String) -> Result<f64, String> {
                     }
                 }
             }
-            Ok(150.0) // Safe Fallback if symbol isn't found or JSON shape is wrong
+            Err(format!("Symbol '{}' not found or invalid.", ticker))
         },
         Err(e) => {
             eprintln!("Reqwest Error: {}", e);
-            Ok(150.0)
+            Err(format!("Network Error: Could not connect to market API."))
         }
     }
 }
