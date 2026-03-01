@@ -269,6 +269,14 @@ pub struct Ball {
     pub vy: f64,
 }
 
+#[derive(Serialize, Deserialize, Clone, TS)]
+#[ts(export, export_to = "../ui/bindings/")]
+pub struct CircleHazard {
+    pub x: f64,
+    pub y: f64,
+    pub r: f64,
+}
+
 struct GolfState {
     ball: Ball,
     hole_x: f64,
@@ -276,6 +284,9 @@ struct GolfState {
     hole_r: f64,
     canvas_w: f64,
     canvas_h: f64,
+    sand_traps: Vec<CircleHazard>,
+    water_hazards: Vec<CircleHazard>,
+    heavy_ball_unlocked: bool,
 }
 
 impl Default for GolfState {
@@ -284,6 +295,9 @@ impl Default for GolfState {
             ball: Ball { x: 50.0, y: 200.0, r: 8.0, vx: 0.0, vy: 0.0 },
             hole_x: 500.0, hole_y: 200.0, hole_r: 15.0,
             canvas_w: 600.0, canvas_h: 400.0,
+            sand_traps: Vec::new(),
+            water_hazards: Vec::new(),
+            heavy_ball_unlocked: false,
         }
     }
 }
@@ -293,13 +307,28 @@ impl Default for GolfState {
 pub struct GolfRenderState {
     pub ball: Ball,
     pub game_state: String, // "ready", "moving", "win", "lose"
+    pub sand_traps: Vec<CircleHazard>,
+    pub water_hazards: Vec<CircleHazard>,
 }
 
 #[tauri::command]
-fn init_golf(state: State<Mutex<GolfState>>) -> Result<Ball, String> {
+fn init_golf(state: State<Mutex<GolfState>>) -> Result<GolfRenderState, String> {
     let mut golf = state.lock().map_err(format_err)?;
     golf.ball = Ball { x: 50.0, y: 200.0, r: 8.0, vx: 0.0, vy: 0.0 };
-    Ok(golf.ball.clone())
+    
+    // Simple Procedural Generation logic
+    golf.sand_traps = vec![CircleHazard { x: 250.0, y: 200.0, r: 40.0 }];
+    golf.water_hazards = vec![
+        CircleHazard { x: 400.0, y: 80.0, r: 50.0 }, 
+        CircleHazard { x: 400.0, y: 320.0, r: 50.0 }
+    ];
+
+    Ok(GolfRenderState {
+        ball: golf.ball.clone(),
+        game_state: "ready".to_string(),
+        sand_traps: golf.sand_traps.clone(),
+        water_hazards: golf.water_hazards.clone(),
+    })
 }
 
 #[tauri::command]
@@ -315,12 +344,32 @@ fn update_golf_physics(state: State<Mutex<GolfState>>) -> Result<GolfRenderState
     let mut golf = state.lock().map_err(format_err)?;
     let mut game_state = "moving".to_string();
     
-    // Physics
+    // Physics Base (Use heavy_ball_unlocked to determine drag)
+    let friction = if golf.heavy_ball_unlocked { 0.99 } else { 0.98 };
+
     golf.ball.x += golf.ball.vx;
     golf.ball.y += golf.ball.vy;
-    golf.ball.vx *= 0.98; // Friction
-    golf.ball.vy *= 0.98;
+    golf.ball.vx *= friction;
+    golf.ball.vy *= friction;
     
+    // Hazards collision
+    for sand in &golf.sand_traps {
+        let dist = ((golf.ball.x - sand.x).powi(2) + (golf.ball.y - sand.y).powi(2)).sqrt();
+        if dist < sand.r + golf.ball.r {
+            golf.ball.vx *= 0.85; // Heavy sand friction
+            golf.ball.vy *= 0.85;
+        }
+    }
+    
+    for water in &golf.water_hazards {
+        let dist = ((golf.ball.x - water.x).powi(2) + (golf.ball.y - water.y).powi(2)).sqrt();
+        if dist < water.r + golf.ball.r {
+            game_state = "lose".to_string(); // Sploosh
+            golf.ball.vx = 0.0;
+            golf.ball.vy = 0.0;
+        }
+    }
+
     // Walls
     if golf.ball.x - golf.ball.r < 0.0 || golf.ball.x + golf.ball.r > golf.canvas_w {
         golf.ball.vx *= -0.8;
@@ -341,20 +390,36 @@ fn update_golf_physics(state: State<Mutex<GolfState>>) -> Result<GolfRenderState
     // Stop Mechanics
     if golf.ball.vx.abs() < 0.1 && golf.ball.vy.abs() < 0.1 && game_state == "moving" {
         golf.ball.vx = 0.0; golf.ball.vy = 0.0;
-        game_state = "lose".to_string();
+        game_state = "lose".to_string(); // Stopping outside the hole means loss
     }
     
     if golf.ball.vx == 0.0 && golf.ball.vy == 0.0 && game_state == "moving" {
         game_state = "ready".to_string();
     }
 
-
-
     Ok(GolfRenderState {
         ball: golf.ball.clone(),
         game_state,
+        sand_traps: golf.sand_traps.clone(),
+        water_hazards: golf.water_hazards.clone(),
     })
 }
+
+#[tauri::command]
+fn buy_pro_shop_upgrade(app_handle: tauri::AppHandle, state: State<Mutex<GolfState>>) -> Result<UserDB, String> {
+    let mut db = get_user_db(app_handle.clone())?;
+    let cost = 500;
+    if db.coins < cost {
+        return Err(format!("Not enough coins! Need 500."));
+    }
+    db.coins -= cost;
+    save_user_db(app_handle.clone(), db.clone())?;
+    
+    let mut golf = state.lock().map_err(format_err)?;
+    golf.heavy_ball_unlocked = true;
+
+    Ok(db)
+}    
 
 // ---------------------------
 // 4. FINANCIAL ENGINE EXPANSION

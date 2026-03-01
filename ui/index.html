@@ -173,9 +173,22 @@
 
     <!-- Hidden Game Container -->
     <div id="golf-game-overlay" class="hidden">
-        <div class="game-container">
+        <div class="game-container" style="display: flex; flex-direction: column; align-items: center;">
             <h2>Secret Golf Link Activated! 🤫</h2>
-            <canvas id="golfCanvas" width="600" height="400"></canvas>
+            <canvas id="golfCanvas" width="600" height="400"
+                style="margin-bottom: 1rem; border: 2px solid white; border-radius: 8px;"></canvas>
+
+            <div
+                style="background: var(--glass); padding: 1rem; border-radius: 8px; border: 1px solid #fbbf24; margin-bottom: 1rem; width: 600px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4 style="margin: 0; color: #fbbf24;">⛳ The Pro Shop</h4>
+                    <p style="margin: 0; font-size: 0.9rem;">Heavy Ball Upgrade: Reduces wind friction by 50%.</p>
+                </div>
+                <button id="btn-buy-upgrade" onclick="buyGolfUpgrade()"
+                    style="background: #fbbf24; color: black; font-weight: bold; width: auto; padding: 0.5rem 1rem;">Buy
+                    (500 Coins)</button>
+            </div>
+
             <button onclick="closeGolf()">Return to Studies</button>
         </div>
     </div>

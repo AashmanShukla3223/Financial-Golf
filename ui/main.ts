@@ -251,7 +251,10 @@ window.initGolf = async function () {
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
 
-    let ball = await invoke('init_golf');
+    let initData: any = await invoke('init_golf');
+    let ball = initData.ball;
+    let sand_traps: any[] = initData.sand_traps || [];
+    let water_hazards: any[] = initData.water_hazards || [];
     let hole = { x: 500, y: 200, r: 15 };
 
     let isDragging = false;
@@ -262,6 +265,22 @@ window.initGolf = async function () {
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Sand Traps
+        ctx.fillStyle = '#fde047';
+        for (const sand of sand_traps) {
+            ctx.beginPath();
+            ctx.arc(sand.x, sand.y, sand.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Draw Water Hazards
+        ctx.fillStyle = '#3b82f6';
+        for (const water of water_hazards) {
+            ctx.beginPath();
+            ctx.arc(water.x, water.y, water.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
         // Draw Hole
         ctx.fillStyle = 'black';
@@ -324,7 +343,10 @@ window.initGolf = async function () {
 
     canvas.onmousedown = async (e) => {
         if (gameState === 'win' || gameState === 'lose') {
-            ball = await invoke('init_golf');
+            const initData: any = await invoke('init_golf');
+            ball = initData.ball;
+            sand_traps = initData.sand_traps;
+            water_hazards = initData.water_hazards;
             gameState = 'ready';
             awardedWin = false;
             draw();
@@ -365,9 +387,39 @@ window.initGolf = async function () {
     draw();
 }
 
+// Physics-based Golf Engine Overlay Toggle
+// @ts-ignore
+window.openGolf = function () {
+    const overlay = document.getElementById('golf-game-overlay');
+    if (overlay) overlay.classList.remove('hidden');
+    // @ts-ignore
+    window.initGolf();
+}
+
 // @ts-ignore
 window.closeGolf = function () {
-    document.getElementById('golf-game-overlay')!.classList.add('hidden');
+    const overlay = document.getElementById('golf-game-overlay');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+// @ts-ignore
+window.buyGolfUpgrade = async function () {
+    const btn = document.getElementById('btn-buy-upgrade') as HTMLButtonElement;
+    if (btn) btn.disabled = true;
+    try {
+        const db: any = await invoke('buy_pro_shop_upgrade');
+        alert("Heavy Ball Unlocked! Wind resistance is now permanently reduced.");
+        // @ts-ignore
+        if (typeof window.updatePortfolioDisplay === 'function') {
+            // @ts-ignore
+            window.updatePortfolioDisplay(db);
+        }
+        document.getElementById('coin-count')!.innerText = db.coins;
+    } catch (e) {
+        alert(e);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 // @ts-ignore
