@@ -18,6 +18,18 @@
     --input-bg: rgba(255, 255, 255, 0.7);
 }
 
+@media (prefers-color-scheme: light) {
+    :root[data-theme='system'] {
+        --bg-color: #f8fafc;
+        --primary: #059669;
+        --text: #0f172a;
+        --glass: rgba(255, 255, 255, 0.7);
+        --glass-border: rgba(0, 0, 0, 0.1);
+        --grad-end: #e2e8f0;
+        --input-bg: rgba(255, 255, 255, 0.7);
+    }
+}
+
 body {
     margin: 0;
     padding: 2rem;

@@ -29,7 +29,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const labels = tableData.map(r => `Age ${r.age}`);
         const data = tableData.map(r => r.balance);
 
-        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
+        const isSystemLight = document.documentElement.getAttribute('data-theme') === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches;
+        const isLight = isLightTheme || isSystemLight;
         const gridColor = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
         const textColor = isLight ? '#0f172a' : '#f8fafc';
 
@@ -79,6 +81,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (theme === 'light') {
             document.documentElement.setAttribute('data-theme', 'light');
             if (themeBtn) themeBtn.innerText = '🌙 Dark Mode';
+        } else if (theme === 'system') {
+            document.documentElement.setAttribute('data-theme', 'system');
+            if (themeBtn) themeBtn.innerText = '☀️ Light Mode';
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            if (themeBtn) themeBtn.innerText = '⚙️ System Mode';
         }
 
         // Fetch Initial User DB
@@ -108,16 +116,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 window.toggleTheme = async function () {
     const root = document.documentElement;
     const btn = document.getElementById('theme-toggle');
-    const isLight = root.getAttribute('data-theme') === 'light';
+    const currentTheme = root.getAttribute('data-theme') || 'dark';
 
-    if (isLight) {
-        root.removeAttribute('data-theme');
+    if (currentTheme === 'dark') {
+        root.setAttribute('data-theme', 'system');
         if (btn) btn.innerText = '☀️ Light Mode';
-        await invoke('set_theme_preference', { theme: 'dark' });
-    } else {
+        await invoke('set_theme_preference', { theme: 'system' });
+    } else if (currentTheme === 'system') {
         root.setAttribute('data-theme', 'light');
         if (btn) btn.innerText = '🌙 Dark Mode';
         await invoke('set_theme_preference', { theme: 'light' });
+    } else {
+        root.setAttribute('data-theme', 'dark');
+        if (btn) btn.innerText = '⚙️ System Mode';
+        await invoke('set_theme_preference', { theme: 'dark' });
     }
 }
 

@@ -385,16 +385,24 @@ fn calculate_debt_payoff(debt1: f64, debt2: f64, monthly_payment: f64) -> Result
 
 #[tauri::command]
 async fn fetch_stock_price(ticker: String) -> Result<f64, String> {
-    // Call Yahoo Finance directly
+    // Call Yahoo Finance directly with a User-Agent to bypass generic bot blocks
     let url = format!("https://query1.finance.yahoo.com/v8/finance/chart/{}?interval=1d", ticker);
-    match reqwest::get(&url).await {
+    
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
+        .build()
+        .map_err(|_| "Failed to build HTTP client".to_string())?;
+
+    match client.get(&url).send().await {
         Ok(res) => {
-            if let Ok(json) = res.json::<serde_json::Value>().await {
-                if let Some(price) = json["chart"]["result"][0]["meta"]["regularMarketPrice"].as_f64() {
-                    return Ok(price);
+            if res.status().is_success() {
+                if let Ok(json) = res.json::<serde_json::Value>().await {
+                    if let Some(price) = json["chart"]["result"][0]["meta"]["regularMarketPrice"].as_f64() {
+                        return Ok(price);
+                    }
                 }
             }
-            Ok(150.0) // Safe Fallback
+            Ok(150.0) // Safe Fallback if symbol isn't found or JSON shape is wrong
         },
         Err(e) => {
             eprintln!("Reqwest Error: {}", e);

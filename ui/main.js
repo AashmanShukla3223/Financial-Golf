@@ -30,7 +30,9 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
         canvas.style.display = 'block';
         const labels = tableData.map(r => `Age ${r.age}`);
         const data = tableData.map(r => r.balance);
-        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
+        const isSystemLight = document.documentElement.getAttribute('data-theme') === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches;
+        const isLight = isLightTheme || isSystemLight;
         const gridColor = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
         const textColor = isLight ? '#0f172a' : '#f8fafc';
         if (growthChart)
@@ -79,6 +81,16 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
             if (themeBtn)
                 themeBtn.innerText = '🌙 Dark Mode';
         }
+        else if (theme === 'system') {
+            document.documentElement.setAttribute('data-theme', 'system');
+            if (themeBtn)
+                themeBtn.innerText = '☀️ Light Mode';
+        }
+        else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            if (themeBtn)
+                themeBtn.innerText = '⚙️ System Mode';
+        }
         // Fetch Initial User DB
         const db = yield invoke('get_user_db');
         document.getElementById('coin-count').innerText = db.coins;
@@ -107,18 +119,24 @@ window.toggleTheme = function () {
     return __awaiter(this, void 0, void 0, function* () {
         const root = document.documentElement;
         const btn = document.getElementById('theme-toggle');
-        const isLight = root.getAttribute('data-theme') === 'light';
-        if (isLight) {
-            root.removeAttribute('data-theme');
+        const currentTheme = root.getAttribute('data-theme') || 'dark';
+        if (currentTheme === 'dark') {
+            root.setAttribute('data-theme', 'system');
             if (btn)
                 btn.innerText = '☀️ Light Mode';
-            yield invoke('set_theme_preference', { theme: 'dark' });
+            yield invoke('set_theme_preference', { theme: 'system' });
         }
-        else {
+        else if (currentTheme === 'system') {
             root.setAttribute('data-theme', 'light');
             if (btn)
                 btn.innerText = '🌙 Dark Mode';
             yield invoke('set_theme_preference', { theme: 'light' });
+        }
+        else {
+            root.setAttribute('data-theme', 'dark');
+            if (btn)
+                btn.innerText = '⚙️ System Mode';
+            yield invoke('set_theme_preference', { theme: 'dark' });
         }
     });
 };
