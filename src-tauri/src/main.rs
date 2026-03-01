@@ -578,6 +578,59 @@ async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, 
     }
 }
 
+#[tauri::command]
+async fn ask_ai_audio(audio_base64: String, app_handle: tauri::AppHandle) -> Result<String, String> {
+    let db = get_user_db(app_handle.clone())?;
+    if db.gemini_api_key.is_empty() {
+        return Err("API Key not set. Please configure it in settings.".to_string());
+    }
+
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={}", db.gemini_api_key);
+    
+    // Construct the Gemini API Multimodal payload
+    let payload = serde_json::json!({
+        "contents": [{
+            "parts": [
+                {
+                    "inlineData": {
+                        "mimeType": "audio/webm",
+                        "data": audio_base64
+                    }
+                },
+                {
+                    "text": "You are a financial tutor inside an educational app for a 12-year-old student. The user just sent an audio message. Listen to the audio and respond enthusiastically, keeping your answer simple and under 3 paragraphs."
+                }
+            ]
+        }]
+    });
+
+    let client = reqwest::Client::new();
+    let res = client.post(&url)
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await;
+
+    match res {
+        Ok(response) => {
+            if response.status().is_success() {
+                if let Ok(json) = response.json::<serde_json::Value>().await {
+                    if let Some(text) = json["candidates"][0]["content"]["parts"][0]["text"].as_str() {
+                        return Ok(text.to_string());
+                    }
+                }
+                Err("Failed to parse AI response.".to_string())
+            } else {
+                let status = response.status();
+                let error_body = response.text().await.unwrap_or_else(|_| "Could not read error body".to_string());
+                eprintln!("Gemini API Error [{}]: {}", status, error_body);
+                Err(format!("API Error {}: {}", status, error_body))
+            }
+        },
+        Err(e) => Err(format!("Network Error: {}", e))
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(Mutex::new(QuizState::default()))
@@ -608,7 +661,8 @@ fn main() {
             fetch_stock_price,
             buy_stock,
             sell_stock,
-            ask_ai
+            ask_ai,
+            ask_ai_audio
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -624,3 +624,79 @@ window.sellStock = function () {
         }
     });
 };
+let mediaRecorder = null;
+let audioChunks = [];
+// @ts-ignore
+window.toggleRecording = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        const btn = document.getElementById('btn-record-chat');
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            btn.innerHTML = '🎙️';
+            btn.style.background = 'var(--secondary)';
+        }
+        else {
+            try {
+                const stream = yield navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+                mediaRecorder.onstop = () => __awaiter(this, void 0, void 0, function* () {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioChunks = [];
+                    // Convert Blob to Base64
+                    const reader = new FileReader();
+                    reader.readAsDataURL(audioBlob);
+                    reader.onloadend = () => __awaiter(this, void 0, void 0, function* () {
+                        const result = reader.result;
+                        const base64data = result.substring(result.indexOf(',') + 1);
+                        yield sendAudioChat(base64data);
+                    });
+                });
+                mediaRecorder.start();
+                btn.innerHTML = '🛑';
+                btn.style.background = '#ef4444';
+            }
+            catch (err) {
+                alert("Could not access microphone: " + err);
+            }
+        }
+    });
+};
+function sendAudioChat(base64data) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const history = document.getElementById('chat-history');
+        const input = document.getElementById('chat-input');
+        const btnSend = document.getElementById('btn-send-chat');
+        const btnRecord = document.getElementById('btn-record-chat');
+        const userBubble = document.createElement('div');
+        userBubble.style.cssText = "background: var(--primary); color: white; padding: 0.5rem; border-radius: 5px; align-self: flex-end; max-width: 80%; margin-top: 0.5rem;";
+        userBubble.innerHTML = `<strong>You:</strong> 🎤 (Voice Message)`;
+        history.appendChild(userBubble);
+        history.scrollTop = history.scrollHeight;
+        input.disabled = true;
+        btnSend.disabled = true;
+        btnRecord.disabled = true;
+        const aiBubble = document.createElement('div');
+        aiBubble.style.cssText = "background: var(--glass); margin-top: 0.5rem; padding: 0.5rem; border-radius: 5px; align-self: flex-start; max-width: 80%;";
+        aiBubble.innerHTML = `<strong>Tutor:</strong> Listening...`;
+        history.appendChild(aiBubble);
+        history.scrollTop = history.scrollHeight;
+        try {
+            const response = yield invoke('ask_ai_audio', { audioBase64: base64data });
+            aiBubble.innerHTML = `<strong>Tutor:</strong> ${response.replace(/\n/g, '<br>')}`;
+        }
+        catch (e) {
+            aiBubble.innerHTML = `<strong>Tutor:</strong> ❌ ${e}`;
+            aiBubble.style.color = "red";
+        }
+        finally {
+            input.disabled = false;
+            btnSend.disabled = false;
+            btnRecord.disabled = false;
+            input.focus();
+            history.scrollTop = history.scrollHeight;
+        }
+    });
+}

@@ -163,6 +163,8 @@
                     <div class="form-group" style="display: flex; gap: 0.5rem; margin-top: auto;">
                         <input type="text" id="chat-input" placeholder="e.g., What is a Roth IRA?" style="flex: 1;"
                             onkeypress="if(event.key === 'Enter') sendChat()">
+                        <button id="btn-record-chat" onclick="toggleRecording()"
+                            style="width: auto; padding: 0 1rem; background: var(--secondary);">🎙️</button>
                         <button id="btn-send-chat" onclick="sendChat()"
                             style="width: auto; padding: 0 1.5rem;">Send</button>
                     </div>
