@@ -435,7 +435,7 @@ async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, 
         return Err("API Key not set. Please configure it in settings.".to_string());
     }
 
-    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={}", db.gemini_api_key);
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={}", db.gemini_api_key);
     
     // Construct the Gemini API payload
     let payload = serde_json::json!({
