@@ -3,11 +3,6 @@ const { invoke } = window.__TAURI__.tauri;
 // @ts-ignore
 const { listen } = window.__TAURI__.event;
 
-import type { InterestResult } from './bindings/InterestResult';
-import type { QuizResponse } from './bindings/QuizResponse';
-import type { Ball } from './bindings/Ball';
-import type { GolfRenderState } from './bindings/GolfRenderState';
-import type { TableRow } from './bindings/TableRow';
 
 // Store event unlisteners for cleanup on unmount
 const unlisteners: Array<() => void> = [];
@@ -20,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Listen for async Rust calculations
     // @ts-ignore
     const unlistenTable = await listen('table-calculated', (event) => {
-        const tableData: TableRow[] = event.payload;
+        const tableData: any[] = event.payload;
         const currency = (document.getElementById('currency') as HTMLSelectElement).value;
         let html = '<table class="data-table"><tr><th>Year</th><th>Age</th><th>Balance</th></tr>';
         tableData.forEach(row => {
@@ -51,13 +46,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (keys.length > 10) keys.shift();
         if (keys.join(',') === konami) {
             document.getElementById('golf-game-overlay')!.classList.remove('hidden');
-            initGolf(); // Init minigame
+            // @ts-ignore
+            window.initGolf(); // Init minigame
             keys = [];
         }
     });
 });
 
-async function calculateInterest() {
+// @ts-ignore
+window.calculateInterest = async function () {
     const btn = document.getElementById('btn-calc-interest') as HTMLButtonElement;
     if (btn) btn.disabled = true;
 
@@ -68,7 +65,7 @@ async function calculateInterest() {
     const ratePercent = parseFloat((document.getElementById('rate') as HTMLInputElement).value) || 8;
 
     try {
-        const data: InterestResult = await invoke('calculate_interest', { principal, currentAge, duration, ratePercent });
+        const data: any = await invoke('calculate_interest', { principal, currentAge, duration, ratePercent });
 
         document.getElementById('interest-result')!.innerText =
             `By age ${data.final_age} (${duration} years at ${ratePercent}%):\n${currency}${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -107,7 +104,7 @@ window.loadQuiz = async function () {
 }
 
 async function renderQuiz() {
-    const quizResponse: QuizResponse = await invoke('get_quiz');
+    const quizResponse: any = await invoke('get_quiz');
 
     if (quizResponse.is_complete) {
         document.getElementById('quiz-container')!.innerHTML = "<h3>Quiz Complete! 🎉</h3><p>You have answered all 10 questions.</p><button onclick='loadQuiz()'>Restart Quiz</button>";
@@ -135,7 +132,8 @@ window.checkAnswer = async function (selectedIndex: number) {
 
 // Physics-based Golf Minigame
 // Physics-based Golf Engine (Native Rust Backend)
-async function initGolf() {
+// @ts-ignore
+window.initGolf = async function () {
     const canvas = document.getElementById('golfCanvas') as HTMLCanvasElement;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
@@ -192,7 +190,7 @@ async function initGolf() {
 
     async function update() {
         if (gameState === 'moving') {
-            const stateInfo: GolfRenderState = await invoke('update_golf_physics');
+            const stateInfo: any = await invoke('update_golf_physics');
             ball = stateInfo.ball;
             gameState = stateInfo.game_state;
         }
@@ -244,6 +242,7 @@ async function initGolf() {
     draw();
 }
 
-function closeGolf() {
+// @ts-ignore
+window.closeGolf = function () {
     document.getElementById('golf-game-overlay')!.classList.add('hidden');
 }
