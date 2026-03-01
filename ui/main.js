@@ -430,3 +430,60 @@ window.fetchMarket = function () {
         }
     });
 };
+// @ts-ignore
+window.openSettings = function () {
+    document.getElementById('settings-modal').classList.remove('hidden');
+};
+// @ts-ignore
+window.saveSettings = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        const key = document.getElementById('gemini-key-input').value;
+        try {
+            yield invoke('set_api_key', { apiKey: key });
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+        catch (e) {
+            alert("Failed to save API KEY: " + e);
+        }
+    });
+};
+// @ts-ignore
+window.sendChat = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        const input = document.getElementById('chat-input');
+        const history = document.getElementById('chat-history');
+        const btn = document.getElementById('btn-send-chat');
+        const message = input.value.trim();
+        if (!message)
+            return;
+        // Append User Message
+        const userBubble = document.createElement('div');
+        userBubble.style.cssText = "background: var(--primary); color: white; padding: 0.5rem; border-radius: 5px; align-self: flex-end; max-width: 80%; margin-top: 0.5rem;";
+        userBubble.innerHTML = `<strong>You:</strong> ${message}`;
+        history.appendChild(userBubble);
+        history.scrollTop = history.scrollHeight;
+        input.value = "";
+        input.disabled = true;
+        btn.disabled = true;
+        // Loading Bubble
+        const aiBubble = document.createElement('div');
+        aiBubble.style.cssText = "background: var(--glass); margin-top: 0.5rem; padding: 0.5rem; border-radius: 5px; align-self: flex-start; max-width: 80%;";
+        aiBubble.innerHTML = `<strong>Tutor:</strong> Thinking...`;
+        history.appendChild(aiBubble);
+        history.scrollTop = history.scrollHeight;
+        try {
+            const response = yield invoke('ask_ai', { prompt: message });
+            aiBubble.innerHTML = `<strong>Tutor:</strong> ${response.replace(/\n/g, '<br>')}`;
+        }
+        catch (e) {
+            aiBubble.innerHTML = `<strong>Tutor:</strong> ❌ ${e}`;
+            aiBubble.style.color = "red";
+        }
+        finally {
+            input.disabled = false;
+            btn.disabled = false;
+            input.focus();
+            history.scrollTop = history.scrollHeight;
+        }
+    });
+};

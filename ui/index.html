@@ -12,7 +12,28 @@
 
 <body>
     <div class="app-container">
-        <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">☀️ Light Mode</button>
+        <!-- Top Navigation Buttons -->
+        <div style="display: flex; gap: 1rem; position: absolute; top: 1rem; right: 1rem; z-index: 10;">
+            <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" style="position: static;">☀️ Light
+                Mode</button>
+            <button id="settings-toggle" onclick="openSettings()"
+                style="padding: 0.5rem 1rem; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); cursor: pointer; font-family: Outfit, sans-serif;">⚙️
+                AI Settings</button>
+        </div>
+
+        <!-- Hidden Settings Modal -->
+        <div id="settings-modal" class="hidden"
+            style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+            <div class="card glass-morph" style="width: 400px; padding: 2rem;">
+                <h3>🤖 API Configuration</h3>
+                <p>Enter your Google Gemini API Key to enable the AI Financial Tutor.</p>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <input type="password" id="gemini-key-input" placeholder="AIzaSy...">
+                    <button onclick="saveSettings()" style="margin-top: 1rem;">Save & Close</button>
+                </div>
+            </div>
+        </div>
+
         <header class="glass-morph">
             <h1>Financial Golf ⛳</h1>
             <p>Welcome, Student! Master your money, master the green.</p>
@@ -98,6 +119,29 @@
                         <button id="btn-fetch-market" onclick="fetchMarket()">Ping Wall Street</button>
                     </div>
                     <div id="market-result" class="result" style="font-size: 2rem; margin-top: 1rem;"></div>
+                </div>
+            </section>
+
+            <section class="grid" style="grid-template-columns: 1fr;">
+                <div class="card glass-morph" style="display: flex; flex-direction: column; height: 500px;">
+                    <h3>🤖 AI Financial Tutor (Gemini Pro)</h3>
+                    <p>Ask any money question! I'll explain it simply.</p>
+
+                    <div id="chat-history"
+                        style="flex: 1; overflow-y: auto; background: var(--input-bg); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 0.5rem;">
+                        <div
+                            style="background: var(--glass); padding: 0.5rem; border-radius: 5px; align-self: flex-start; max-width: 80%;">
+                            <strong>Tutor:</strong> Hi there! I'm your AI money guide. What would you like to learn
+                            today?
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="display: flex; gap: 0.5rem; margin-top: auto;">
+                        <input type="text" id="chat-input" placeholder="e.g., What is a Roth IRA?" style="flex: 1;"
+                            onkeypress="if(event.key === 'Enter') sendChat()">
+                        <button id="btn-send-chat" onclick="sendChat()"
+                            style="width: auto; padding: 0 1.5rem;">Send</button>
+                    </div>
                 </div>
             </section>
         </main>

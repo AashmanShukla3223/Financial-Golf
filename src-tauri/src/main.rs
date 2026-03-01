@@ -50,11 +50,17 @@ pub struct UserDB {
     pub coins: u32,
     pub high_score: u32,
     pub quiz_streak: u32,
+    pub gemini_api_key: String,
 }
 
 impl Default for UserDB {
     fn default() -> Self {
-        Self { coins: 0, high_score: 0, quiz_streak: 0 }
+        Self { 
+            coins: 0, 
+            high_score: 0, 
+            quiz_streak: 0,
+            gemini_api_key: "".to_string(),
+        }
     }
 }
 
@@ -92,7 +98,15 @@ fn add_golf_coins(app: tauri::AppHandle, amount: u32) -> Result<UserDB, String> 
 fn increment_quiz_streak(app: tauri::AppHandle) -> Result<UserDB, String> {
     let mut db = get_user_db(app.clone())?;
     db.quiz_streak += 1;
-    save_user_db(app, db.clone())?;
+    save_user_db(app.clone(), db.clone())?;
+    Ok(db)
+}
+
+#[tauri::command]
+fn set_api_key(app: tauri::AppHandle, api_key: String) -> Result<UserDB, String> {
+    let mut db = get_user_db(app.clone())?;
+    db.gemini_api_key = api_key;
+    save_user_db(app.clone(), db.clone())?;
     Ok(db)
 }
 
@@ -411,6 +425,50 @@ async fn fetch_stock_price(ticker: String) -> Result<f64, String> {
     }
 }
 
+// ---------------------------
+// 5. AI FINANCIAL TUTOR
+// ---------------------------
+#[tauri::command]
+async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, String> {
+    let db = get_user_db(app_handle.clone())?;
+    if db.gemini_api_key.is_empty() {
+        return Err("API Key not set. Please configure it in settings.".to_string());
+    }
+
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={}", db.gemini_api_key);
+    
+    // Construct the Gemini API payload
+    let payload = serde_json::json!({
+        "contents": [{
+            "parts": [{"text": format!("You are a financial tutor inside an educational app for a 12-year-old student. Explain this simply and enthusiastically, keeping it under 3 paragraphs: {}", prompt)}]
+        }]
+    });
+
+    let client = reqwest::Client::new();
+    let res = client.post(&url)
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await;
+
+    match res {
+        Ok(response) => {
+            if response.status().is_success() {
+                if let Ok(json) = response.json::<serde_json::Value>().await {
+                    if let Some(text) = json["candidates"][0]["content"]["parts"][0]["text"].as_str() {
+                        return Ok(text.to_string());
+                    }
+                }
+                Err("Failed to parse AI response.".to_string())
+            } else {
+                let status = response.status();
+                Err(format!("API Error: HTTP {}", status))
+            }
+        },
+        Err(e) => Err(format!("Network Error: {}", e))
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(Mutex::new(QuizState::default()))
@@ -427,6 +485,7 @@ fn main() {
             save_user_db,
             add_golf_coins,
             increment_quiz_streak,
+            set_api_key,
             calculate_interest,
             calculate_table_async,
             get_quiz,
@@ -437,7 +496,8 @@ fn main() {
             update_golf_physics,
             calculate_buy_vs_rent,
             calculate_debt_payoff,
-            fetch_stock_price
+            fetch_stock_price,
+            ask_ai
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
