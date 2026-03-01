@@ -14,6 +14,7 @@ const { invoke } = window.__TAURI__.tauri;
 const { listen } = window.__TAURI__.event;
 // Store event unlisteners for cleanup on unmount
 const unlisteners = [];
+let growthChart = null;
 window.addEventListener('beforeunload', () => {
     unlisteners.forEach(unlistener => unlistener());
 });
@@ -23,12 +24,42 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
     const unlistenTable = yield listen('table-calculated', (event) => {
         const tableData = event.payload;
         const currency = document.getElementById('currency').value;
-        let html = '<table class="data-table"><tr><th>Year</th><th>Age</th><th>Balance</th></tr>';
-        tableData.forEach(row => {
-            html += `<tr><td>${row.year}</td><td>${row.age}</td><td>${currency}${row.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+        const canvas = document.getElementById('growthChart');
+        const loading = document.getElementById('table-loading');
+        loading.innerHTML = "";
+        canvas.style.display = 'block';
+        const labels = tableData.map(r => `Age ${r.age}`);
+        const data = tableData.map(r => r.balance);
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const gridColor = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
+        const textColor = isLight ? '#0f172a' : '#f8fafc';
+        if (growthChart)
+            growthChart.destroy();
+        growthChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                        label: `Wealth Accumulation (${currency})`,
+                        data: data,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { labels: { color: textColor } }
+                },
+                scales: {
+                    x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                    y: { ticks: { color: textColor }, grid: { color: gridColor } }
+                }
+            }
         });
-        html += '</table>';
-        document.getElementById('table-container').innerHTML = html;
         const btn = document.getElementById('btn-calc-table');
         if (btn)
             btn.disabled = false;
@@ -40,6 +71,18 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
         const badge = document.getElementById('security-status');
         badge.textContent = status;
         badge.className = 'status-badge secure';
+        // Load Persistent Theme
+        const theme = yield invoke('get_theme_preference');
+        const themeBtn = document.getElementById('theme-toggle');
+        if (theme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            if (themeBtn)
+                themeBtn.innerText = '🌙 Dark Mode';
+        }
+        // Fetch Initial User DB
+        const db = yield invoke('get_user_db');
+        document.getElementById('coin-count').innerText = db.coins;
+        document.getElementById('streak-count').innerText = db.quiz_streak;
     }
     catch (e) {
         console.error("Tauri Error (Are you running in browser?):", e);
@@ -60,6 +103,26 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
     });
 }));
 // @ts-ignore
+window.toggleTheme = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        const root = document.documentElement;
+        const btn = document.getElementById('theme-toggle');
+        const isLight = root.getAttribute('data-theme') === 'light';
+        if (isLight) {
+            root.removeAttribute('data-theme');
+            if (btn)
+                btn.innerText = '☀️ Light Mode';
+            yield invoke('set_theme_preference', { theme: 'dark' });
+        }
+        else {
+            root.setAttribute('data-theme', 'light');
+            if (btn)
+                btn.innerText = '🌙 Dark Mode';
+            yield invoke('set_theme_preference', { theme: 'light' });
+        }
+    });
+};
+// @ts-ignore
 window.calculateInterest = function () {
     return __awaiter(this, void 0, void 0, function* () {
         const btn = document.getElementById('btn-calc-interest');
@@ -73,7 +136,7 @@ window.calculateInterest = function () {
         try {
             const data = yield invoke('calculate_interest', { principal, currentAge, duration, ratePercent });
             document.getElementById('interest-result').innerText =
-                `By age ${data.final_age} (${duration} years at ${ratePercent}%):\n${currency}${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                `By age ${data.final_age}(${duration} years at ${ratePercent} %): \n${currency}${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
         catch (e) {
             document.getElementById('interest-result').innerText = `Rust Error: ${e}`;
@@ -91,7 +154,8 @@ window.calculateTable = function () {
         const btn = document.getElementById('btn-calc-table');
         if (btn)
             btn.disabled = true;
-        document.getElementById('table-container').innerHTML = "<p>Rust is generating the 30-year table asynchronously...</p>";
+        document.getElementById('table-loading').innerHTML = "<p>Rust is rendering the Chart...</p>";
+        document.getElementById('growthChart').style.display = 'none';
         const principal = parseFloat(document.getElementById('principal').value);
         const currentAge = parseInt(document.getElementById('current-age').value) || 18;
         const duration = parseInt(document.getElementById('duration').value) || 30;
@@ -100,10 +164,10 @@ window.calculateTable = function () {
             yield invoke('calculate_table_async', { principal, currentAge, duration, ratePercent });
         }
         catch (e) {
-            document.getElementById('table-container').innerHTML = `<p>Rust Error: ${e}</p>`;
+            document.getElementById('table-loading').innerHTML = `< p > Rust Error: ${e} </p>`;
             console.error(e);
             if (btn)
-                btn.disabled = false; // Re-enable if error, otherwise event listener re-enables it
+                btn.disabled = false;
         }
     });
 };
@@ -118,7 +182,15 @@ function renderQuiz() {
     return __awaiter(this, void 0, void 0, function* () {
         const quizResponse = yield invoke('get_quiz');
         if (quizResponse.is_complete) {
-            document.getElementById('quiz-container').innerHTML = "<h3>Quiz Complete! 🎉</h3><p>You have answered all 10 questions.</p><button onclick='loadQuiz()'>Restart Quiz</button>";
+            document.getElementById('quiz-container').innerHTML = `
+            <h3>Quiz Complete! 🎉</h3>
+            <p>You have answered all 10 questions.</p>
+            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px dashed var(--primary);">
+                <strong>Secret Hint Unlocked 🤫:</strong><br>
+                <em>Up, Up, Down, Down</em>
+            </div>
+            <button onclick='loadQuiz()'>Restart Quiz</button>
+        `;
             return;
         }
         const q = quizResponse.question;
@@ -139,6 +211,16 @@ window.checkAnswer = function (selectedIndex) {
         else {
             alert('Incorrect!');
         }
+        const newQuizState = yield invoke('get_quiz');
+        if (newQuizState.is_complete) {
+            try {
+                const db = yield invoke('increment_quiz_streak');
+                document.getElementById('streak-count').innerText = db.quiz_streak;
+            }
+            catch (e) {
+                console.error(e);
+            }
+        }
         renderQuiz();
     });
 };
@@ -157,6 +239,7 @@ window.initGolf = function () {
         let dragStart = { x: 0, y: 0 };
         let currentMouse = { x: 0, y: 0 };
         let gameState = 'ready'; // ready, moving, win, lose
+        let awardedWin = false;
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             // Draw Hole
@@ -201,6 +284,16 @@ window.initGolf = function () {
                     const stateInfo = yield invoke('update_golf_physics');
                     ball = stateInfo.ball;
                     gameState = stateInfo.game_state;
+                    if (gameState === 'win' && !awardedWin) {
+                        awardedWin = true;
+                        try {
+                            const db = yield invoke('add_golf_coins', { amount: 100 });
+                            document.getElementById('coin-count').innerText = db.coins;
+                        }
+                        catch (e) {
+                            console.error(e);
+                        }
+                    }
                 }
                 draw();
                 if (gameState === 'moving') {
@@ -212,6 +305,7 @@ window.initGolf = function () {
             if (gameState === 'win' || gameState === 'lose') {
                 ball = yield invoke('init_golf');
                 gameState = 'ready';
+                awardedWin = false;
                 draw();
                 return;
             }
@@ -251,4 +345,70 @@ window.initGolf = function () {
 // @ts-ignore
 window.closeGolf = function () {
     document.getElementById('golf-game-overlay').classList.add('hidden');
+};
+// @ts-ignore
+window.calculateBVR = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        const btn = document.getElementById('btn-calc-bvr');
+        if (btn)
+            btn.disabled = true;
+        const rent = parseFloat(document.getElementById('bvr-rent').value);
+        const home_price = parseFloat(document.getElementById('bvr-home').value);
+        const down_payment = parseFloat(document.getElementById('bvr-down').value);
+        const interest_rate = parseFloat(document.getElementById('bvr-rate').value);
+        try {
+            const data = yield invoke('calculate_buy_vs_rent', { rent, homePrice: home_price, downPayment: down_payment, interestRate: interest_rate });
+            document.getElementById('bvr-result').innerHTML = `Crossover: <strong>${data.years_to_breakeven} Years</strong><br>System Recommendation: <strong>${data.recommendation}</strong>`;
+        }
+        catch (e) {
+            document.getElementById('bvr-result').innerText = `Rust Error: ${e}`;
+        }
+        finally {
+            if (btn)
+                btn.disabled = false;
+        }
+    });
+};
+// @ts-ignore
+window.calculateDebt = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        const btn = document.getElementById('btn-calc-debt');
+        if (btn)
+            btn.disabled = true;
+        const debt1 = parseFloat(document.getElementById('debt-1').value);
+        const debt2 = parseFloat(document.getElementById('debt-2').value);
+        const monthly_payment = parseFloat(document.getElementById('debt-pay').value);
+        try {
+            const data = yield invoke('calculate_debt_payoff', { debt1, debt2, monthlyPayment: monthly_payment });
+            document.getElementById('debt-result').innerHTML = `Snowball Method: <strong>${data.months_snowball} mo.</strong><br>Avalanche Method: <strong>${data.months_avalanche} mo.</strong>`;
+        }
+        catch (e) {
+            document.getElementById('debt-result').innerText = `Rust Error: ${e}`;
+        }
+        finally {
+            if (btn)
+                btn.disabled = false;
+        }
+    });
+};
+// @ts-ignore
+window.fetchMarket = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        const btn = document.getElementById('btn-fetch-market');
+        if (btn)
+            btn.disabled = true;
+        const ticker = document.getElementById('market-ticker').value;
+        document.getElementById('market-result').innerHTML = '<span style="font-size: 1rem;">Establishing secure link...</span>';
+        try {
+            const price = yield invoke('fetch_stock_price', { ticker: ticker.toUpperCase() });
+            document.getElementById('market-result').innerHTML = `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        catch (e) {
+            document.getElementById('market-result').innerText = `Networking Error: ${e}`;
+        }
+        finally {
+            if (btn)
+                btn.disabled = false;
+        }
+    });
 };

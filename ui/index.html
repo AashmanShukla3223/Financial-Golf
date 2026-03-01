@@ -7,10 +7,12 @@
     <title>Financial Golf</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
     <div class="app-container">
+        <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">☀️ Light Mode</button>
         <header class="glass-morph">
             <h1>Financial Golf ⛳</h1>
             <p>Welcome, Student! Master your money, master the green.</p>
@@ -20,6 +22,16 @@
             <section class="card glass-morph">
                 <h2>Ransomware Protection Status</h2>
                 <div id="security-status" class="status-badge checking">Checking Security API...</div>
+            </section>
+
+            <section class="card glass-morph" style="margin-top: 1rem;">
+                <h2>Student Progress Dashboard</h2>
+                <div class="status-badge"
+                    style="background: var(--glass); display: flex; justify-content: space-around;">
+                    <div>⛳ Golf Coins: <span id="coin-count" style="color: #fbbf24; font-size: 1.2rem;">0</span></div>
+                    <div>🔥 Quiz Streak: <span id="streak-count" style="color: #ef4444; font-size: 1.2rem;">0</span>
+                    </div>
+                </div>
             </section>
 
             <section class="grid">
@@ -39,7 +51,10 @@
                         <button id="btn-calc-table" onclick="calculateTable()">Generate Growth Table</button>
                     </div>
                     <div id="interest-result" class="result"></div>
-                    <div id="table-container" class="table-container"></div>
+                    <div id="table-loading" class="result"></div>
+                    <div class="table-container">
+                        <canvas id="growthChart" style="display: none;"></canvas>
+                    </div>
                 </div>
 
                 <div class="card glass-morph">
@@ -47,6 +62,42 @@
                     <p>Powered by our Secure Native Quiz Engine</p>
                     <button onclick="loadQuiz()">Load Today's Quiz</button>
                     <div id="quiz-container"></div>
+                </div>
+            </section>
+            <section class="grid">
+                <div class="card glass-morph">
+                    <h3>Rent vs Buy Simulator</h3>
+                    <p>Powered by our High-Performance Rust Engine</p>
+                    <div class="form-group">
+                        <input type="number" id="bvr-rent" placeholder="Monthly Rent" value="1500">
+                        <input type="number" id="bvr-home" placeholder="Home Price" value="400000">
+                        <input type="number" id="bvr-down" placeholder="Down Payment" value="80000">
+                        <input type="number" id="bvr-rate" placeholder="Mortgage Rate (%)" value="6.5" step="0.1">
+                        <button id="btn-calc-bvr" onclick="calculateBVR()">Compare Crossover</button>
+                    </div>
+                    <div id="bvr-result" class="result"></div>
+                </div>
+
+                <div class="card glass-morph">
+                    <h3>Debt Payoff Engine</h3>
+                    <p>Avalanche vs Snowball (Native Calculation)</p>
+                    <div class="form-group">
+                        <input type="number" id="debt-1" placeholder="Credit Card Debt" value="5000">
+                        <input type="number" id="debt-2" placeholder="Student Loan Debt" value="20000">
+                        <input type="number" id="debt-pay" placeholder="Total Monthly Payment" value="800">
+                        <button id="btn-calc-debt" onclick="calculateDebt()">Run Payoff Algorithm</button>
+                    </div>
+                    <div id="debt-result" class="result"></div>
+                </div>
+
+                <div class="card glass-morph">
+                    <h3>Live Global Markets</h3>
+                    <p>Real-Time Async Sync via Rust & Reqwest</p>
+                    <div class="form-group">
+                        <input type="text" id="market-ticker" placeholder="Stock Symbol (e.g. MSFT)" value="MSFT">
+                        <button id="btn-fetch-market" onclick="fetchMarket()">Ping Wall Street</button>
+                    </div>
+                    <div id="market-result" class="result" style="font-size: 2rem; margin-top: 1rem;"></div>
                 </div>
             </section>
         </main>

@@ -4,15 +4,28 @@
     --text: #f8fafc;
     --glass: rgba(255, 255, 255, 0.05);
     --glass-border: rgba(255, 255, 255, 0.1);
+    --grad-end: #1e293b;
+    --input-bg: rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme='light'] {
+    --bg-color: #f8fafc;
+    --primary: #059669;
+    --text: #0f172a;
+    --glass: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(0, 0, 0, 0.1);
+    --grad-end: #e2e8f0;
+    --input-bg: rgba(255, 255, 255, 0.7);
 }
 
 body {
     margin: 0;
     padding: 2rem;
     font-family: 'Outfit', sans-serif;
-    background: linear-gradient(135deg, var(--bg-color), #1e293b);
+    background: linear-gradient(135deg, var(--bg-color), var(--grad-end));
     color: var(--text);
     min-height: 100vh;
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 .glass-morph {
@@ -31,8 +44,15 @@ header {
     animation: fadeInDown 0.8s ease-out;
 }
 
-h1 { margin: 0; font-size: 2.5rem; color: var(--primary); }
-p { color: #cbd5e1; }
+h1 {
+    margin: 0;
+    font-size: 2.5rem;
+    color: var(--primary);
+}
+
+p {
+    color: #cbd5e1;
+}
 
 .grid {
     display: grid;
@@ -43,15 +63,18 @@ p { color: #cbd5e1; }
 
 .card {
     padding: 2rem;
-    transition: transform 0.3s ease;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease, border-color 0.4s ease;
 }
 
 .card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
     border-color: var(--primary);
 }
 
-input, button, select {
+input,
+button,
+select {
     width: 100%;
     padding: 12px;
     margin-top: 10px;
@@ -62,14 +85,40 @@ input, button, select {
     box-sizing: border-box;
 }
 
-input, select {
-    background: rgba(0,0,0,0.2);
-    color: white;
+input,
+select {
+    background: var(--input-bg);
+    color: var(--text);
+    transition: background 0.3s, color 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+input:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
 }
 
 select option {
     background: var(--bg-color);
-    color: white;
+    color: var(--text);
+}
+
+.theme-toggle {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    width: auto;
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.theme-toggle:hover {
+    background: var(--glass);
 }
 
 button {
@@ -77,12 +126,20 @@ button {
     color: #fff;
     font-weight: bold;
     cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
+    transition: background 0.3s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
     border: none;
 }
 
-button:hover { background: #059669; }
-button:active { transform: scale(0.98); }
+button:hover {
+    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+button:active {
+    transform: scale(0.96);
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.4);
+}
 
 .status-badge {
     padding: 10px;
@@ -90,23 +147,61 @@ button:active { transform: scale(0.98); }
     font-weight: bold;
     text-align: center;
 }
-.status-badge.secure { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-.status-badge.checking { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
 
-.result { margin-top: 15px; font-weight: bold; color: var(--primary); text-align: center; }
+.status-badge.secure {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
+.status-badge.checking {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+}
+
+.result {
+    margin-top: 15px;
+    font-weight: bold;
+    color: var(--primary);
+    text-align: center;
+}
 
 /* Hidden Game */
-.hidden { display: none !important; }
+.hidden {
+    display: none !important;
+}
+
 #golf-game-overlay {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.9);
-    display: flex; justify-content: center; align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
     z-index: 1000;
 }
-.game-container { text-align: center; }
-canvas { background: #4ade80; border-radius: 12px; border: 4px solid #166534; margin: 20px 0; }
+
+.game-container {
+    text-align: center;
+}
+
+canvas {
+    background: #4ade80;
+    border-radius: 12px;
+    border: 4px solid #166534;
+    margin: 20px 0;
+}
 
 @keyframes fadeInDown {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
