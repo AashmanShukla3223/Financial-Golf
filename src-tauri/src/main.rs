@@ -366,7 +366,8 @@ fn update_golf_physics(state: State<Mutex<GolfState>>) -> Result<GolfRenderState
     golf.ball.vy *= friction;
     
     // Hazards collision
-    for sand in &golf.sand_traps {
+    let sand_traps = golf.sand_traps.clone();
+    for sand in &sand_traps {
         let dist = ((golf.ball.x - sand.x).powi(2) + (golf.ball.y - sand.y).powi(2)).sqrt();
         if dist < sand.r + golf.ball.r {
             golf.ball.vx *= 0.85; // Heavy sand friction
@@ -374,7 +375,8 @@ fn update_golf_physics(state: State<Mutex<GolfState>>) -> Result<GolfRenderState
         }
     }
     
-    for water in &golf.water_hazards {
+    let water_hazards = golf.water_hazards.clone();
+    for water in &water_hazards {
         let dist = ((golf.ball.x - water.x).powi(2) + (golf.ball.y - water.y).powi(2)).sqrt();
         if dist < water.r + golf.ball.r {
             game_state = "lose".to_string(); // Sploosh
