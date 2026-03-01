@@ -463,7 +463,9 @@ async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, 
                 Err("Failed to parse AI response.".to_string())
             } else {
                 let status = response.status();
-                Err(format!("API Error: HTTP {}", status))
+                let error_body = response.text().await.unwrap_or_else(|_| "Could not read error body".to_string());
+                eprintln!("Gemini API Error [{}]: {}", status, error_body);
+                Err(format!("API Error {}: {}", status, error_body))
             }
         },
         Err(e) => Err(format!("Network Error: {}", e))
