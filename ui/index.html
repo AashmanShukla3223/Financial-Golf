@@ -120,6 +120,30 @@
                     </div>
                     <div id="market-result" class="result" style="font-size: 2rem; margin-top: 1rem;"></div>
                 </div>
+
+                <div class="card glass-morph">
+                    <h3>Paper Trading Simulator 📈</h3>
+                    <p>Trade real stocks using your Golf Coins!</p>
+                    <div class="form-group" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <input type="text" id="trade-ticker" placeholder="Symbol" style="flex: 2;">
+                        <input type="number" id="trade-shares" placeholder="Shares" value="1" style="flex: 1;">
+                    </div>
+                    <div class="form-group" style="display: flex; gap: 0.5rem;">
+                        <button id="btn-buy" onclick="buyStock()" style="flex: 1; background: #10b981;">Buy</button>
+                        <button id="btn-sell" onclick="sellStock()" style="flex: 1; background: #ef4444;">Sell</button>
+                    </div>
+                    <div id="trade-result" class="result"
+                        style="margin-top: 0.5rem; font-size: 0.9rem; color: #fbbf24; font-weight: bold;">Loading
+                        Balance...</div>
+                    <div id="portfolio-display"
+                        style="margin-top: 1rem; border-top: 1px solid var(--glass-border); padding-top: 0.5rem;">
+                        <strong>Your Portfolio:</strong>
+                        <div id="portfolio-list"
+                            style="font-size: 0.9rem; margin-top: 0.5rem; max-height: 100px; overflow-y: auto;">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <section class="grid" style="grid-template-columns: 1fr;">

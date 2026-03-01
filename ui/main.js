@@ -113,11 +113,16 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
             keys = [];
         }
     });
-    // 3. Pre-load Saved API Key into Settings Input
+    // 3. Pre-load Saved API Key into Settings Input & Portfolio Display
     try {
         const db = yield invoke('get_user_db');
         if (db && db.gemini_api_key) {
             document.getElementById('gemini-key-input').value = db.gemini_api_key;
+        }
+        // @ts-ignore
+        if (typeof window.updatePortfolioDisplay === 'function') {
+            // @ts-ignore
+            window.updatePortfolioDisplay(db);
         }
     }
     catch (e) {
@@ -494,6 +499,72 @@ window.sendChat = function () {
             btn.disabled = false;
             input.focus();
             history.scrollTop = history.scrollHeight;
+        }
+    });
+};
+// @ts-ignore
+window.updatePortfolioDisplay = function (db) {
+    const res = document.getElementById('trade-result');
+    if (res)
+        res.innerText = `Bank: ${db.coins} Coins`;
+    const list = document.getElementById('portfolio-list');
+    if (list) {
+        list.innerHTML = '';
+        if (db.portfolio && Object.keys(db.portfolio).length > 0) {
+            for (const ticker in db.portfolio) {
+                const shares = db.portfolio[ticker];
+                const item = document.createElement('div');
+                item.style.display = 'flex';
+                item.style.justifyContent = 'space-between';
+                item.style.padding = '0.25rem 0';
+                item.innerHTML = `<span><strong style="color: var(--primary)">${ticker}</strong></span><span>${shares} Shares</span>`;
+                list.appendChild(item);
+            }
+        }
+        else {
+            list.innerHTML = '<span style="color: var(--text-muted)">Portfolio is empty. Earn coins in Golf!</span>';
+        }
+    }
+};
+// @ts-ignore
+window.buyStock = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        const ticker = document.getElementById('trade-ticker').value.trim().toUpperCase();
+        const shares = parseInt(document.getElementById('trade-shares').value) || 1;
+        const res = document.getElementById('trade-result');
+        if (!ticker)
+            return;
+        if (res)
+            res.innerHTML = `<span style="color: white">Buying ${shares}x ${ticker} via Wall Street...</span>`;
+        try {
+            const db = yield invoke('buy_stock', { ticker, shares: Number(shares) });
+            // @ts-ignore
+            window.updatePortfolioDisplay(db);
+        }
+        catch (e) {
+            if (res)
+                res.innerHTML = `<span style="color: #ef4444">${e}</span>`;
+        }
+    });
+};
+// @ts-ignore
+window.sellStock = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        const ticker = document.getElementById('trade-ticker').value.trim().toUpperCase();
+        const shares = parseInt(document.getElementById('trade-shares').value) || 1;
+        const res = document.getElementById('trade-result');
+        if (!ticker)
+            return;
+        if (res)
+            res.innerHTML = `<span style="color: white">Selling ${shares}x ${ticker} to Wall Street...</span>`;
+        try {
+            const db = yield invoke('sell_stock', { ticker, shares: Number(shares) });
+            // @ts-ignore
+            window.updatePortfolioDisplay(db);
+        }
+        catch (e) {
+            if (res)
+                res.innerHTML = `<span style="color: #ef4444">${e}</span>`;
         }
     });
 };

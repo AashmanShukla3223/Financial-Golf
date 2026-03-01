@@ -51,6 +51,7 @@ pub struct UserDB {
     pub high_score: u32,
     pub quiz_streak: u32,
     pub gemini_api_key: String,
+    pub portfolio: std::collections::HashMap<String, u32>,
 }
 
 impl Default for UserDB {
@@ -60,6 +61,7 @@ impl Default for UserDB {
             high_score: 0, 
             quiz_streak: 0,
             gemini_api_key: "".to_string(),
+            portfolio: std::collections::HashMap::new(),
         }
     }
 }
@@ -425,6 +427,45 @@ async fn fetch_stock_price(ticker: String) -> Result<f64, String> {
     }
 }
 
+#[tauri::command]
+async fn buy_stock(app_handle: tauri::AppHandle, ticker: String, shares: u32) -> Result<UserDB, String> {
+    let price = fetch_stock_price(ticker.clone()).await?;
+    let total_cost = (price * shares as f64).round() as u32;
+
+    let mut db = get_user_db(app_handle.clone())?;
+    if db.coins < total_cost {
+        return Err(format!("Insufficient coins. Need {}, have {}", total_cost, db.coins));
+    }
+
+    db.coins -= total_cost;
+    *db.portfolio.entry(ticker).or_insert(0) += shares;
+    save_user_db(app_handle.clone(), db.clone())?;
+    Ok(db)
+}
+
+#[tauri::command]
+async fn sell_stock(app_handle: tauri::AppHandle, ticker: String, shares: u32) -> Result<UserDB, String> {
+    let mut db = get_user_db(app_handle.clone())?;
+    let owned = *db.portfolio.get(&ticker).unwrap_or(&0);
+
+    if owned < shares {
+        return Err(format!("Insufficient shares. Need {}, own {}", shares, owned));
+    }
+
+    let price = fetch_stock_price(ticker.clone()).await?;
+    let total_value = (price * shares as f64).round() as u32;
+
+    db.coins += total_value;
+    if owned == shares {
+        db.portfolio.remove(&ticker);
+    } else {
+        db.portfolio.insert(ticker, owned - shares);
+    }
+
+    save_user_db(app_handle.clone(), db.clone())?;
+    Ok(db)
+}
+
 // ---------------------------
 // 5. AI FINANCIAL TUTOR
 // ---------------------------
@@ -500,6 +541,8 @@ fn main() {
             calculate_buy_vs_rent,
             calculate_debt_payoff,
             fetch_stock_price,
+            buy_stock,
+            sell_stock,
             ask_ai
         ])
         .run(tauri::generate_context!())

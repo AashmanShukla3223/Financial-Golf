@@ -111,11 +111,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // 3. Pre-load Saved API Key into Settings Input
+    // 3. Pre-load Saved API Key into Settings Input & Portfolio Display
     try {
         const db: any = await invoke('get_user_db');
         if (db && db.gemini_api_key) {
             (document.getElementById('gemini-key-input') as HTMLInputElement).value = db.gemini_api_key;
+        }
+        // @ts-ignore
+        if (typeof window.updatePortfolioDisplay === 'function') {
+            // @ts-ignore
+            window.updatePortfolioDisplay(db);
         }
     } catch (e) {
         console.error("Failed to load UserDB on startup:", e);
@@ -475,5 +480,63 @@ window.sendChat = async function () {
         btn.disabled = false;
         input.focus();
         history.scrollTop = history.scrollHeight;
+    }
+}
+
+// @ts-ignore
+window.updatePortfolioDisplay = function (db: any) {
+    const res = document.getElementById('trade-result');
+    if (res) res.innerText = `Bank: ${db.coins} Coins`;
+
+    const list = document.getElementById('portfolio-list');
+    if (list) {
+        list.innerHTML = '';
+        if (db.portfolio && Object.keys(db.portfolio).length > 0) {
+            for (const ticker in db.portfolio) {
+                const shares = db.portfolio[ticker];
+                const item = document.createElement('div');
+                item.style.display = 'flex';
+                item.style.justifyContent = 'space-between';
+                item.style.padding = '0.25rem 0';
+                item.innerHTML = `<span><strong style="color: var(--primary)">${ticker}</strong></span><span>${shares} Shares</span>`;
+                list.appendChild(item);
+            }
+        } else {
+            list.innerHTML = '<span style="color: var(--text-muted)">Portfolio is empty. Earn coins in Golf!</span>';
+        }
+    }
+}
+
+// @ts-ignore
+window.buyStock = async function () {
+    const ticker = (document.getElementById('trade-ticker') as HTMLInputElement).value.trim().toUpperCase();
+    const shares = parseInt((document.getElementById('trade-shares') as HTMLInputElement).value) || 1;
+    const res = document.getElementById('trade-result');
+    if (!ticker) return;
+
+    if (res) res.innerHTML = `<span style="color: white">Buying ${shares}x ${ticker} via Wall Street...</span>`;
+    try {
+        const db: any = await invoke('buy_stock', { ticker, shares: Number(shares) });
+        // @ts-ignore
+        window.updatePortfolioDisplay(db);
+    } catch (e) {
+        if (res) res.innerHTML = `<span style="color: #ef4444">${e}</span>`;
+    }
+}
+
+// @ts-ignore
+window.sellStock = async function () {
+    const ticker = (document.getElementById('trade-ticker') as HTMLInputElement).value.trim().toUpperCase();
+    const shares = parseInt((document.getElementById('trade-shares') as HTMLInputElement).value) || 1;
+    const res = document.getElementById('trade-result');
+    if (!ticker) return;
+
+    if (res) res.innerHTML = `<span style="color: white">Selling ${shares}x ${ticker} to Wall Street...</span>`;
+    try {
+        const db: any = await invoke('sell_stock', { ticker, shares: Number(shares) });
+        // @ts-ignore
+        window.updatePortfolioDisplay(db);
+    } catch (e) {
+        if (res) res.innerHTML = `<span style="color: #ef4444">${e}</span>`;
     }
 }
