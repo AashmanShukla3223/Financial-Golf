@@ -9,6 +9,7 @@ use serde::{Serialize, Deserialize};
 use tauri::{State, Manager};
 use ts_rs::TS;
 use sha2::{Sha256, Digest};
+use hex;
 
 // Enterprise Standard: Centralized String Error Mapping
 fn format_err<E: std::fmt::Display>(err: E) -> String {
