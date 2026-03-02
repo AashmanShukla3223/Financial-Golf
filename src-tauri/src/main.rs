@@ -59,7 +59,8 @@ pub struct UserDB {
     pub coins: u32,
     pub high_score: u32,
     pub quiz_streak: u32,
-    pub gemini_api_key: String,
+    pub google_cookie_1psid: String,
+    pub google_cookie_1psidts: String,
     pub currency: String,
     pub portfolio: std::collections::HashMap<String, u32>,
     pub chat_sessions: Vec<ChatSession>,
@@ -72,7 +73,8 @@ impl Default for UserDB {
             coins: 0, 
             high_score: 0, 
             quiz_streak: 0,
-            gemini_api_key: "".to_string(),
+            google_cookie_1psid: "".to_string(),
+            google_cookie_1psidts: "".to_string(),
             currency: "USD".to_string(),
             portfolio: std::collections::HashMap::new(),
             chat_sessions: Vec::new(),
@@ -154,9 +156,10 @@ fn increment_quiz_streak(app: tauri::AppHandle) -> Result<UserDB, String> {
 }
 
 #[tauri::command]
-fn save_settings(app: tauri::AppHandle, api_key: String, currency: String) -> Result<UserDB, String> {
+fn save_settings(app: tauri::AppHandle, __secure_1psid: String, __secure_1psidts: String, currency: String) -> Result<UserDB, String> {
     let mut db = get_user_db(app.clone())?;
-    db.gemini_api_key = api_key;
+    db.google_cookie_1psid = __secure_1psid;
+    db.google_cookie_1psidts = __secure_1psidts;
     db.currency = currency;
     save_user_db(app.clone(), db.clone())?;
     Ok(db)
@@ -665,15 +668,26 @@ async fn generate_chat_title(app_handle: tauri::AppHandle, session_id: String, f
     let mut db = get_user_db(app_handle.clone())?;
     let mut generated_title = "New Chat".to_string();
 
-    if !db.gemini_api_key.is_empty() {
-        let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={}", db.gemini_api_key);
+    if !db.google_cookie_1psid.is_empty() {
+        // Unofficial Consumer Cookie Spoofing Endpoint
+        let url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
         let payload = serde_json::json!({
             "contents": [{
                 "parts": [{"text": format!("Extract a very short 2-3 word title for this prompt. No quotes, no intro. Prompt: {}", first_msg)}]
             }]
         });
+        
+        // Native Zero-Linker Architecture: Injecting the Cookie into Reqwest Headers
         let client = reqwest::Client::new();
-        if let Ok(res) = client.post(&url).header("Content-Type", "application/json").json(&payload).send().await {
+        let cookie_string = format!("__Secure-1PSID={}; __Secure-1PSIDTS={}", db.google_cookie_1psid, db.google_cookie_1psidts);
+        
+        if let Ok(res) = client.post(url)
+            .header("Content-Type", "application/json")
+            .header("Cookie", cookie_string)
+            .json(&payload)
+            .send()
+            .await 
+        {
             if res.status().is_success() {
                 if let Ok(json) = res.json::<serde_json::Value>().await {
                     if let Some(text) = json["candidates"][0]["content"]["parts"][0]["text"].as_str() {
@@ -697,14 +711,11 @@ async fn generate_chat_title(app_handle: tauri::AppHandle, session_id: String, f
 #[tauri::command]
 async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, String> {
     let db = get_user_db(app_handle.clone())?;
-    if db.gemini_api_key.is_empty() {
-        return Err("API Key not set. Please configure it in settings.".to_string());
+    if db.google_cookie_1psid.is_empty() {
+        return Err("Google Account not connected. Please login in settings.".to_string());
     }
 
-    // Using gemini-3-flash-preview per user request
-    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={}", db.gemini_api_key);
-    
-    // Construct the Gemini API payload
+    let url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
     let payload = serde_json::json!({
         "contents": [{
             "parts": [{"text": format!("You are a financial tutor inside an educational app for a 12-year-old student. Explain this simply and enthusiastically, keeping it under 3 paragraphs: {}", prompt)}]
@@ -712,8 +723,11 @@ async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, 
     });
 
     let client = reqwest::Client::new();
-    let res = client.post(&url)
+    let cookie_string = format!("__Secure-1PSID={}; __Secure-1PSIDTS={}", db.google_cookie_1psid, db.google_cookie_1psidts);
+
+    let res = client.post(url)
         .header("Content-Type", "application/json")
+        .header("Cookie", cookie_string)
         .json(&payload)
         .send()
         .await;
@@ -726,12 +740,12 @@ async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, 
                         return Ok(text.to_string());
                     }
                 }
-                Err("Failed to parse AI response.".to_string())
+                Err("Failed to parse Consumer AI response.".to_string())
             } else {
                 let status = response.status();
                 let error_body = response.text().await.unwrap_or_else(|_| "Could not read error body".to_string());
-                eprintln!("Gemini API Error [{}]: {}", status, error_body);
-                Err(format!("API Error {}: {}", status, error_body))
+                eprintln!("Consumer API Spoof Error [{}]: {}", status, error_body);
+                Err(format!("Scraper Error {}: {}", status, error_body))
             }
         },
         Err(e) => Err(format!("Network Error: {}", e))
@@ -739,15 +753,74 @@ async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, 
 }
 
 #[tauri::command]
-async fn ask_ai_audio(audio_base64: String, app_handle: tauri::AppHandle) -> Result<String, String> {
-    let db = get_user_db(app_handle.clone())?;
-    if db.gemini_api_key.is_empty() {
-        return Err("API Key not set. Please configure it in settings.".to_string());
+async fn open_auth_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    use tauri::{WindowBuilder, WindowUrl};
+
+    if let Some(window) = app_handle.get_window("google_auth") {
+        let _ = window.close();
     }
 
-    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={}", db.gemini_api_key);
-    
-    // Construct the Gemini API Multimodal payload
+    let injection_script = r#"
+        setInterval(() => {
+            const cookies = document.cookie.split(';');
+            let psid = null;
+            let psidts = null;
+            for (let i = 0; i < cookies.length; i++) {
+                let c = cookies[i].trim();
+                if (c.startsWith('__Secure-1PSID=')) {
+                    psid = c.substring('__Secure-1PSID='.length);
+                }
+                if (c.startsWith('__Secure-1PSIDTS=')) {
+                    psidts = c.substring('__Secure-1PSIDTS='.length);
+                }
+            }
+            if (psid && psidts) {
+                window.__TAURI__.event.emit('cookies_extracted', { psid: psid, psidts: psidts });
+            }
+        }, 3000);
+    "#;
+
+    let local_handle = app_handle.clone();
+    let auth_window = WindowBuilder::new(
+        &app_handle,
+        "google_auth",
+        WindowUrl::External("https://gemini.google.com/app".parse().unwrap())
+    )
+    .title("Google Authentication")
+    .width(800.0)
+    .height(600.0)
+    .initialization_script(injection_script)
+    .build()
+    .map_err(|e| format!("Failed to build auth window: {}", e))?;
+
+    let window_clone = auth_window.clone();
+    app_handle.listen_global("cookies_extracted", move |event| {
+        if let Some(payload) = event.payload() {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(payload) {
+                if let (Some(psid), Some(psidts)) = (json["psid"].as_str(), json["psidts"].as_str()) {
+                    if let Ok(mut db) = get_user_db(local_handle.clone()) {
+                        db.google_cookie_1psid = psid.to_string();
+                        db.google_cookie_1psidts = psidts.to_string();
+                        let _ = save_user_db(local_handle.clone(), db);
+                        println!("Successfully scraped Google Consumer Cookies.");
+                    }
+                    let _ = window_clone.close();
+                }
+            }
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn ask_ai_audio(audio_base64: String, app_handle: tauri::AppHandle) -> Result<String, String> {
+    let db = get_user_db(app_handle.clone())?;
+    if db.google_cookie_1psid.is_empty() {
+        return Err("Google Account not connected. Please login in settings.".to_string());
+    }
+
+    let url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
     let payload = serde_json::json!({
         "contents": [{
             "parts": [
@@ -765,8 +838,11 @@ async fn ask_ai_audio(audio_base64: String, app_handle: tauri::AppHandle) -> Res
     });
 
     let client = reqwest::Client::new();
-    let res = client.post(&url)
+    let cookie_string = format!("__Secure-1PSID={}; __Secure-1PSIDTS={}", db.google_cookie_1psid, db.google_cookie_1psidts);
+
+    let res = client.post(url)
         .header("Content-Type", "application/json")
+        .header("Cookie", cookie_string)
         .json(&payload)
         .send()
         .await;
@@ -779,17 +855,18 @@ async fn ask_ai_audio(audio_base64: String, app_handle: tauri::AppHandle) -> Res
                         return Ok(text.to_string());
                     }
                 }
-                Err("Failed to parse AI response.".to_string())
+                Err("Failed to parse Multimodal AI response.".to_string())
             } else {
                 let status = response.status();
                 let error_body = response.text().await.unwrap_or_else(|_| "Could not read error body".to_string());
-                eprintln!("Gemini API Error [{}]: {}", status, error_body);
-                Err(format!("API Error {}: {}", status, error_body))
+                eprintln!("Consumer Multimodal Spoof Error [{}]: {}", status, error_body);
+                Err(format!("Audio Scraper Error {}: {}", status, error_body))
             }
         },
         Err(e) => Err(format!("Network Error: {}", e))
     }
 }
+
 
 // ---------------------------
 // 6. GLOBAL LEADERBOARDS
@@ -877,6 +954,7 @@ fn main() {
             create_chat_session,
             delete_chat_session,
             generate_chat_title,
+            open_auth_window,
             sync_leaderboard,
             buy_pro_shop_upgrade
         ])

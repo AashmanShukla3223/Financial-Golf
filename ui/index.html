@@ -28,10 +28,13 @@
                 <h3>🤖 API Configuration</h3>
                 <p>Configure your Global Preferences.</p>
                 <div class="form-group" style="margin-top: 1rem;">
-                    <label style="font-size: 0.9rem; margin-bottom: 0.2rem; display:block;">AI Financial Tutor (Gemini
-                        API Key)</label>
-                    <input type="password" id="gemini-key-input" placeholder="AIzaSy...">
-
+                    <label style="font-size: 0.9rem; margin-bottom: 0.2rem; display:block;">AI Financial Tutor (Consumer
+                        Google Integration)</label>
+                    <input type="text" id="gemini-key-input" placeholder="Google Account Not Connected" readonly
+                        style="background: rgba(255,255,255,0.05); color: #aaa;">
+                    <button id="btn-google-auth" onclick="googleAccountAuth()"
+                        style="margin-top: 0.5rem; background: #4285F4; border:none; display:block; width: 100%;">Connect
+                        Google Account</button>
                     <label style="font-size: 0.9rem; margin-top: 1rem; margin-bottom: 0.2rem; display:block;">Global
                         Currency</label>
                     <select id="global-currency" style="margin-bottom: 1rem;">

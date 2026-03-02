@@ -132,8 +132,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. Pre-load Saved API Key into Settings Input & Portfolio Display
     try {
         const db: any = await invoke('get_user_db');
-        if (db && db.gemini_api_key) {
-            (document.getElementById('gemini-key-input') as HTMLInputElement).value = db.gemini_api_key;
+        if (db.google_cookie_1psid) {
+            (document.getElementById('gemini-key-input') as HTMLInputElement).value = "•••••••••••• (Authorized)";
         }
         if (db && db.currency) {
             globalCurrency = db.currency;
@@ -524,14 +524,27 @@ window.openSettings = function () {
 
 // @ts-ignore
 window.saveSettings = async function () {
-    const key = (document.getElementById('gemini-key-input') as HTMLInputElement).value;
     const currency = (document.getElementById('global-currency') as HTMLSelectElement).value;
     try {
-        await invoke('save_settings', { apiKey: key, currency });
+        await invoke('save_settings', { __secure_1psid: "", __secure_1psidts: "", currency });
         globalCurrency = currency;
         document.getElementById('settings-modal')!.classList.add('hidden');
     } catch (e) {
-        alert("Failed to save API KEY: " + e);
+        alert("Failed to save Currency: " + e);
+    }
+}
+
+// @ts-ignore
+window.googleAccountAuth = async function () {
+    const btn = document.getElementById('btn-google-auth') as HTMLButtonElement;
+    if (btn) btn.innerHTML = "Opening Google...";
+    try {
+        await invoke('open_auth_window');
+        if (btn) btn.innerHTML = "Authorized!";
+        (document.getElementById('gemini-key-input') as HTMLInputElement).value = "•••••••••••• (Authorized)";
+    } catch (e) {
+        alert("Google Error: " + e);
+        if (btn) btn.innerHTML = "Login Error";
     }
 }
 
