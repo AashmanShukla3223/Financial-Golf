@@ -52,6 +52,7 @@ pub struct UserDB {
     pub high_score: u32,
     pub quiz_streak: u32,
     pub gemini_api_key: String,
+    pub currency: String,
     pub portfolio: std::collections::HashMap<String, u32>,
 }
 
@@ -63,6 +64,7 @@ impl Default for UserDB {
             high_score: 0, 
             quiz_streak: 0,
             gemini_api_key: "".to_string(),
+            currency: "USD".to_string(),
             portfolio: std::collections::HashMap::new(),
         }
     }
@@ -118,9 +120,10 @@ fn increment_quiz_streak(app: tauri::AppHandle) -> Result<UserDB, String> {
 }
 
 #[tauri::command]
-fn set_api_key(app: tauri::AppHandle, api_key: String) -> Result<UserDB, String> {
+fn save_settings(app: tauri::AppHandle, api_key: String, currency: String) -> Result<UserDB, String> {
     let mut db = get_user_db(app.clone())?;
     db.gemini_api_key = api_key;
+    db.currency = currency;
     save_user_db(app.clone(), db.clone())?;
     Ok(db)
 }
@@ -720,7 +723,7 @@ fn main() {
             save_user_db,
             add_golf_coins,
             increment_quiz_streak,
-            set_api_key,
+            save_settings,
             calculate_interest,
             calculate_table_async,
             get_quiz,

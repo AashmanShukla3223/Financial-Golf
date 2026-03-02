@@ -12,6 +12,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 const { invoke } = window.__TAURI__.tauri;
 // @ts-ignore
 const { listen } = window.__TAURI__.event;
+let globalCurrency = "USD";
+function formatMoney(amount) {
+    let symbol = "$";
+    if (globalCurrency === "EUR")
+        symbol = "€";
+    if (globalCurrency === "INR")
+        symbol = "₹";
+    return `${symbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function formatMoneyNoCents(amount) {
+    let symbol = "$";
+    if (globalCurrency === "EUR")
+        symbol = "€";
+    if (globalCurrency === "INR")
+        symbol = "₹";
+    return `${symbol}${amount.toLocaleString()}`;
+}
 // Store event unlisteners for cleanup on unmount
 const unlisteners = [];
 let growthChart = null;
@@ -23,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
     // @ts-ignore
     const unlistenTable = yield listen('table-calculated', (event) => {
         const tableData = event.payload;
-        const currency = document.getElementById('currency').value;
+        const currency = globalCurrency;
         const canvas = document.getElementById('growthChart');
         const loading = document.getElementById('table-loading');
         loading.innerHTML = "";
@@ -119,6 +136,12 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
         if (db && db.gemini_api_key) {
             document.getElementById('gemini-key-input').value = db.gemini_api_key;
         }
+        if (db && db.currency) {
+            globalCurrency = db.currency;
+            const sel = document.getElementById('global-currency');
+            if (sel)
+                sel.value = globalCurrency;
+        }
         // @ts-ignore
         if (typeof window.updatePortfolioDisplay === 'function') {
             // @ts-ignore
@@ -162,14 +185,13 @@ window.calculateInterest = function () {
         if (btn)
             btn.disabled = true;
         const principal = parseFloat(document.getElementById('principal').value);
-        const currency = document.getElementById('currency').value;
         const currentAge = parseInt(document.getElementById('current-age').value) || 18;
         const duration = parseInt(document.getElementById('duration').value) || 10;
         const ratePercent = parseFloat(document.getElementById('rate').value) || 8;
         try {
             const data = yield invoke('calculate_interest', { principal, currentAge, duration, ratePercent });
             document.getElementById('interest-result').innerText =
-                `By age ${data.final_age}(${duration} years at ${ratePercent} %): \n${currency}${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                `By age ${data.final_age}(${duration} years at ${ratePercent} %): \n${formatMoney(data.amount)}`;
         }
         catch (e) {
             document.getElementById('interest-result').innerText = `Rust Error: ${e}`;
@@ -490,7 +512,7 @@ window.fetchMarket = function () {
         document.getElementById('market-result').innerHTML = '<span style="font-size: 1rem;">Establishing secure link...</span>';
         try {
             const price = yield invoke('fetch_stock_price', { ticker: ticker.toUpperCase() });
-            document.getElementById('market-result').innerHTML = `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('market-result').innerHTML = formatMoney(price);
         }
         catch (e) {
             document.getElementById('market-result').innerText = `Networking Error: ${e}`;
@@ -509,8 +531,10 @@ window.openSettings = function () {
 window.saveSettings = function () {
     return __awaiter(this, void 0, void 0, function* () {
         const key = document.getElementById('gemini-key-input').value;
+        const currency = document.getElementById('global-currency').value;
         try {
-            yield invoke('set_api_key', { apiKey: key });
+            yield invoke('save_settings', { apiKey: key, currency });
+            globalCurrency = currency;
             document.getElementById('settings-modal').classList.add('hidden');
         }
         catch (e) {
@@ -719,7 +743,7 @@ window.syncLeaderboard = function () {
                 html += `<tr style="${rowStyle}">
                 <td>#${index + 1}</td>
                 <td>${entry.uuid.substring(0, 13)}...</td>
-                <td>$${entry.net_worth.toLocaleString()}</td>
+                <td>${formatMoneyNoCents(entry.net_worth)}</td>
             </tr>`;
             });
             html += '</table>';

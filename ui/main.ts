@@ -3,6 +3,22 @@ const { invoke } = window.__TAURI__.tauri;
 // @ts-ignore
 const { listen } = window.__TAURI__.event;
 
+let globalCurrency = "USD";
+
+function formatMoney(amount: number): string {
+    let symbol = "$";
+    if (globalCurrency === "EUR") symbol = "€";
+    if (globalCurrency === "INR") symbol = "₹";
+    return `${symbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatMoneyNoCents(amount: number): string {
+    let symbol = "$";
+    if (globalCurrency === "EUR") symbol = "€";
+    if (globalCurrency === "INR") symbol = "₹";
+    return `${symbol}${amount.toLocaleString()}`;
+}
+
 
 // Store event unlisteners for cleanup on unmount
 const unlisteners: Array<() => void> = [];
@@ -19,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // @ts-ignore
     const unlistenTable = await listen('table-calculated', (event) => {
         const tableData: any[] = event.payload;
-        const currency = (document.getElementById('currency') as HTMLSelectElement).value;
+        const currency = globalCurrency;
         const canvas = document.getElementById('growthChart') as HTMLCanvasElement;
         const loading = document.getElementById('table-loading')!;
 
@@ -117,6 +133,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (db && db.gemini_api_key) {
             (document.getElementById('gemini-key-input') as HTMLInputElement).value = db.gemini_api_key;
         }
+        if (db && db.currency) {
+            globalCurrency = db.currency;
+            const sel = document.getElementById('global-currency') as HTMLSelectElement;
+            if (sel) sel.value = globalCurrency;
+        }
         // @ts-ignore
         if (typeof window.updatePortfolioDisplay === 'function') {
             // @ts-ignore
@@ -154,7 +175,6 @@ window.calculateInterest = async function () {
     if (btn) btn.disabled = true;
 
     const principal = parseFloat((document.getElementById('principal') as HTMLInputElement).value);
-    const currency = (document.getElementById('currency') as HTMLSelectElement).value;
     const currentAge = parseInt((document.getElementById('current-age') as HTMLInputElement).value) || 18;
     const duration = parseInt((document.getElementById('duration') as HTMLInputElement).value) || 10;
     const ratePercent = parseFloat((document.getElementById('rate') as HTMLInputElement).value) || 8;
@@ -163,7 +183,7 @@ window.calculateInterest = async function () {
         const data: any = await invoke('calculate_interest', { principal, currentAge, duration, ratePercent });
 
         document.getElementById('interest-result')!.innerText =
-            `By age ${data.final_age}(${duration} years at ${ratePercent} %): \n${currency}${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            `By age ${data.final_age}(${duration} years at ${ratePercent} %): \n${formatMoney(data.amount)}`;
     } catch (e) {
         document.getElementById('interest-result')!.innerText = `Rust Error: ${e}`;
         console.error(e);
@@ -471,7 +491,7 @@ window.fetchMarket = async function () {
 
     try {
         const price: number = await invoke('fetch_stock_price', { ticker: ticker.toUpperCase() });
-        document.getElementById('market-result')!.innerHTML = `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        document.getElementById('market-result')!.innerHTML = formatMoney(price);
     } catch (e) {
         document.getElementById('market-result')!.innerText = `Networking Error: ${e}`;
     } finally {
@@ -486,8 +506,10 @@ window.openSettings = function () {
 // @ts-ignore
 window.saveSettings = async function () {
     const key = (document.getElementById('gemini-key-input') as HTMLInputElement).value;
+    const currency = (document.getElementById('global-currency') as HTMLSelectElement).value;
     try {
-        await invoke('set_api_key', { apiKey: key });
+        await invoke('save_settings', { apiKey: key, currency });
+        globalCurrency = currency;
         document.getElementById('settings-modal')!.classList.add('hidden');
     } catch (e) {
         alert("Failed to save API KEY: " + e);
@@ -686,7 +708,7 @@ window.syncLeaderboard = async function () {
             html += `<tr style="${rowStyle}">
                 <td>#${index + 1}</td>
                 <td>${entry.uuid.substring(0, 13)}...</td>
-                <td>$${entry.net_worth.toLocaleString()}</td>
+                <td>${formatMoneyNoCents(entry.net_worth)}</td>
             </tr>`;
         });
         html += '</table>';

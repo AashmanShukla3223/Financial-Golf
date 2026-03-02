@@ -26,10 +26,21 @@
             style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;">
             <div class="card glass-morph" style="width: 400px; padding: 2rem;">
                 <h3>🤖 API Configuration</h3>
-                <p>Enter your Google Gemini API Key to enable the AI Financial Tutor.</p>
+                <p>Configure your Global Preferences.</p>
                 <div class="form-group" style="margin-top: 1rem;">
+                    <label style="font-size: 0.9rem; margin-bottom: 0.2rem; display:block;">AI Financial Tutor (Gemini
+                        API Key)</label>
                     <input type="password" id="gemini-key-input" placeholder="AIzaSy...">
-                    <button onclick="saveSettings()" style="margin-top: 1rem;">Save & Close</button>
+
+                    <label style="font-size: 0.9rem; margin-top: 1rem; margin-bottom: 0.2rem; display:block;">Global
+                        Currency</label>
+                    <select id="global-currency" style="margin-bottom: 1rem;">
+                        <option value="USD" selected>USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="INR">INR (₹)</option>
+                    </select>
+
+                    <button onclick="saveSettings()">Save & Close</button>
                 </div>
             </div>
         </div>
@@ -60,10 +71,6 @@
                     <h3>Compound Interest Calculator</h3>
                     <p>Powered by our High-Performance Rust Engine</p>
                     <div class="form-group">
-                        <select id="currency">
-                            <option value="$" selected>USD ($)</option>
-                            <option value="₹">INR (₹)</option>
-                        </select>
                         <input type="number" id="principal" placeholder="Starting Amount" value="1000">
                         <input type="number" id="current-age" placeholder="Current Age" value="18">
                         <input type="number" id="duration" placeholder="Duration (Years)" value="30">
