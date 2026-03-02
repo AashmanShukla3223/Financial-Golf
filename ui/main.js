@@ -13,6 +13,8 @@ const { invoke } = window.__TAURI__.tauri;
 // @ts-ignore
 const { listen } = window.__TAURI__.event;
 let globalCurrency = "USD";
+let currentChatId = null;
+let allChats = [];
 function formatMoney(amount) {
     let symbol = "$";
     if (globalCurrency === "EUR")
@@ -147,24 +149,21 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
             // @ts-ignore
             window.updatePortfolioDisplay(db);
         }
-        // Restore AI Chat History
-        if (db && db.chat_history && db.chat_history.length > 0) {
-            const historyDiv = document.getElementById('chat-history');
-            if (historyDiv) {
-                db.chat_history.forEach((turn) => {
-                    const [userMsg, aiMsg] = turn;
-                    // Render User Bubble
-                    const userBubble = document.createElement('div');
-                    userBubble.style.cssText = "background: var(--primary); color: white; padding: 0.5rem; border-radius: 5px; align-self: flex-end; max-width: 80%; margin-top: 0.5rem;";
-                    userBubble.innerHTML = `<strong>You:</strong> ${userMsg}`;
-                    historyDiv.appendChild(userBubble);
-                    // Render AI Bubble
-                    const aiBubble = document.createElement('div');
-                    aiBubble.style.cssText = "background: var(--glass); margin-top: 0.5rem; padding: 0.5rem; border-radius: 5px; align-self: flex-start; max-width: 80%;";
-                    aiBubble.innerHTML = `<strong>Tutor:</strong> ${aiMsg.replace(/\n/g, '<br>')}`;
-                    historyDiv.appendChild(aiBubble);
-                });
-                historyDiv.scrollTop = historyDiv.scrollHeight;
+        // Restore AI Chat History Sessions
+        if (db && db.chat_sessions) {
+            allChats = db.chat_sessions;
+            if (typeof window.renderChatList === 'function') {
+                window.renderChatList();
+            }
+            if (allChats.length > 0) {
+                if (typeof window.loadChat === 'function') {
+                    window.loadChat(allChats[allChats.length - 1].id);
+                }
+            }
+            else {
+                if (typeof window.createNewChat === 'function') {
+                    window.createNewChat();
+                }
             }
         }
     }
@@ -563,13 +562,98 @@ window.saveSettings = function () {
     });
 };
 // @ts-ignore
+window.renderChatList = function () {
+    const list = document.getElementById('chat-session-list');
+    if (!list)
+        return;
+    list.innerHTML = '';
+    [...allChats].reverse().forEach(session => {
+        const div = document.createElement('div');
+        div.style.cssText = `padding: 0.5rem; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: ${session.id === currentChatId ? 'var(--primary)' : 'var(--input-bg)'}; margin-bottom: 0.3rem; transition: background 0.3s; color: white;`;
+        const span = document.createElement('span');
+        span.innerText = session.title;
+        span.style.cssText = "white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.9rem; flex: 1;";
+        span.onclick = () => window.loadChat(session.id);
+        const delBtn = document.createElement('button');
+        delBtn.innerHTML = "❌";
+        delBtn.style.cssText = "width: auto; padding: 2px 5px; margin: 0; background: transparent; box-shadow: none; font-size: 0.7rem;";
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            window.deleteChat(session.id);
+        };
+        div.appendChild(span);
+        div.appendChild(delBtn);
+        list.appendChild(div);
+    });
+};
+// @ts-ignore
+window.loadChat = function (id) {
+    currentChatId = id;
+    window.renderChatList();
+    const session = allChats.find(s => s.id === id);
+    const historyDiv = document.getElementById('chat-history');
+    if (historyDiv && session) {
+        historyDiv.innerHTML = `<div style="background: var(--glass); padding: 0.5rem; border-radius: 5px; align-self: flex-start; max-width: 80%;"><strong>Tutor:</strong> Hi there! I'm your AI money guide. What would you like to learn today?</div>`;
+        session.messages.forEach((turn) => {
+            const [userMsg, aiMsg] = turn;
+            const userBubble = document.createElement('div');
+            userBubble.style.cssText = "background: var(--primary); color: white; padding: 0.5rem; border-radius: 5px; align-self: flex-end; max-width: 80%; margin-top: 0.5rem;";
+            userBubble.innerHTML = `<strong>You:</strong> ${userMsg}`;
+            historyDiv.appendChild(userBubble);
+            const aiBubble = document.createElement('div');
+            aiBubble.style.cssText = "background: var(--glass); margin-top: 0.5rem; padding: 0.5rem; border-radius: 5px; align-self: flex-start; max-width: 80%;";
+            aiBubble.innerHTML = `<strong>Tutor:</strong> ${aiMsg.replace(/\n/g, '<br>')}`;
+            historyDiv.appendChild(aiBubble);
+        });
+        historyDiv.scrollTop = historyDiv.scrollHeight;
+    }
+};
+// @ts-ignore
+window.createNewChat = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const db = yield invoke('create_chat_session', { title: "New Chat" });
+            allChats = db.chat_sessions;
+            if (allChats.length > 0) {
+                window.loadChat(allChats[allChats.length - 1].id);
+            }
+        }
+        catch (e) {
+            console.error(e);
+        }
+    });
+};
+// @ts-ignore
+window.deleteChat = function (id) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const db = yield invoke('delete_chat_session', { sessionId: id });
+            allChats = db.chat_sessions;
+            if (allChats.length === 0) {
+                yield window.createNewChat();
+            }
+            else {
+                if (currentChatId === id) {
+                    window.loadChat(allChats[allChats.length - 1].id);
+                }
+                else {
+                    window.renderChatList();
+                }
+            }
+        }
+        catch (e) {
+            console.error(e);
+        }
+    });
+};
+// @ts-ignore
 window.sendChat = function () {
     return __awaiter(this, void 0, void 0, function* () {
         const input = document.getElementById('chat-input');
         const history = document.getElementById('chat-history');
         const btn = document.getElementById('btn-send-chat');
         const message = input.value.trim();
-        if (!message)
+        if (!message || !currentChatId)
             return;
         // Append User Message
         const userBubble = document.createElement('div');
@@ -589,7 +673,14 @@ window.sendChat = function () {
         try {
             const response = yield invoke('ask_ai', { prompt: message });
             aiBubble.innerHTML = `<strong>Tutor:</strong> ${response.replace(/\n/g, '<br>')}`;
-            yield invoke('save_chat_history', { userMsg: message, aiMsg: response });
+            let db = yield invoke('save_chat_history', { sessionId: currentChatId, userMsg: message, aiMsg: response });
+            allChats = db.chat_sessions;
+            const currentSession = allChats.find(s => s.id === currentChatId);
+            if (currentSession && currentSession.title === "New Chat" && currentSession.messages.length === 1) {
+                db = yield invoke('generate_chat_title', { sessionId: currentChatId, firstMsg: message });
+                allChats = db.chat_sessions;
+                window.renderChatList();
+            }
         }
         catch (e) {
             aiBubble.innerHTML = `<strong>Tutor:</strong> ❌ ${e}`;
@@ -731,7 +822,15 @@ function sendAudioChat(base64data) {
         try {
             const response = yield invoke('ask_ai_audio', { audioBase64: base64data });
             aiBubble.innerHTML = `<strong>Tutor:</strong> ${response.replace(/\n/g, '<br>')}`;
-            yield invoke('save_chat_history', { userMsg: "🎤 (Voice Message)", aiMsg: response });
+            let db = yield invoke('save_chat_history', { sessionId: currentChatId, userMsg: "🎤 (Voice Message)", aiMsg: response });
+            allChats = db.chat_sessions;
+            const currentSession = allChats.find(s => s.id === currentChatId);
+            if (currentSession && currentSession.title === "New Chat" && currentSession.messages.length === 1) {
+                db = yield invoke('generate_chat_title', { sessionId: currentChatId, firstMsg: "Audio Conversation" });
+                allChats = db.chat_sessions;
+                // @ts-ignore
+                window.renderChatList();
+            }
         }
         catch (e) {
             aiBubble.innerHTML = `<strong>Tutor:</strong> ❌ ${e}`;

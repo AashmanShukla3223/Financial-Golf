@@ -46,6 +46,14 @@ fn set_theme_preference(app: tauri::AppHandle, theme: String) -> Result<(), Stri
 // ---------------------------
 #[derive(Serialize, Deserialize, Clone, TS)]
 #[ts(export, export_to = "../ui/bindings/")]
+pub struct ChatSession {
+    pub id: String,
+    pub title: String,
+    pub messages: Vec<(String, String)>,
+}
+
+#[derive(Serialize, Deserialize, Clone, TS)]
+#[ts(export, export_to = "../ui/bindings/")]
 pub struct UserDB {
     pub uuid: String,
     pub coins: u32,
@@ -54,7 +62,7 @@ pub struct UserDB {
     pub gemini_api_key: String,
     pub currency: String,
     pub portfolio: std::collections::HashMap<String, u32>,
-    pub chat_history: Vec<(String, String)>,
+    pub chat_sessions: Vec<ChatSession>,
 }
 
 impl Default for UserDB {
@@ -67,7 +75,7 @@ impl Default for UserDB {
             gemini_api_key: "".to_string(),
             currency: "USD".to_string(),
             portfolio: std::collections::HashMap::new(),
-            chat_history: Vec::new(),
+            chat_sessions: Vec::new(),
         }
     }
 }
@@ -78,7 +86,31 @@ fn get_user_db(app: tauri::AppHandle) -> Result<UserDB, String> {
     path.push("user_db.json");
     let mut db = if path.exists() {
         let content = fs::read_to_string(&path).map_err(format_err)?;
-        serde_json::from_str(&content).unwrap_or_else(|_| UserDB::default())
+        
+        // Native Migration logic for older UserDB versions
+        if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(history) = json.get_mut("chat_history") {
+                let mut sessions = serde_json::json!([]);
+                if let Some(arr) = history.as_array() {
+                    if !arr.is_empty() {
+                        let session = serde_json::json!({
+                            "id": "session-1",
+                            "title": "Previous Chat",
+                            "messages": arr
+                        });
+                        sessions.as_array_mut().unwrap().push(session);
+                    }
+                }
+                json.as_object_mut().unwrap().insert("chat_sessions".to_string(), sessions);
+                json.as_object_mut().unwrap().remove("chat_history");
+                
+                serde_json::from_value(json).unwrap_or_else(|_| UserDB::default())
+            } else {
+                serde_json::from_str(&content).unwrap_or_else(|_| UserDB::default())
+            }
+        } else {
+            UserDB::default()
+        }
     } else {
         UserDB::default()
     };
@@ -589,18 +621,76 @@ async fn sell_stock(app_handle: tauri::AppHandle, ticker: String, shares: u32) -
 // 5. AI FINANCIAL TUTOR
 // ---------------------------
 #[tauri::command]
-fn save_chat_history(app_handle: tauri::AppHandle, user_msg: String, ai_msg: String) -> Result<UserDB, String> {
+fn save_chat_history(app_handle: tauri::AppHandle, session_id: String, user_msg: String, ai_msg: String) -> Result<UserDB, String> {
     let mut db = get_user_db(app_handle.clone())?;
     
-    db.chat_history.push((user_msg, ai_msg));
-    
-    // Prune logic: Enforce strictly 50 trailing memory items to save disk space
-    if db.chat_history.len() > 50 {
-        let excess = db.chat_history.len() - 50;
-        db.chat_history.drain(0..excess);
+    if let Some(session) = db.chat_sessions.iter_mut().find(|s| s.id == session_id) {
+        session.messages.push((user_msg, ai_msg));
+        if session.messages.len() > 50 {
+            let excess = session.messages.len() - 50;
+            session.messages.drain(0..excess);
+        }
+    }
+    save_user_db(app_handle.clone(), db.clone())?;
+    Ok(db)
+}
+
+#[tauri::command]
+fn create_chat_session(app_handle: tauri::AppHandle, title: String) -> Result<UserDB, String> {
+    let mut db = get_user_db(app_handle.clone())?;
+    let id = format!("session-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+    db.chat_sessions.push(ChatSession {
+        id,
+        title,
+        messages: Vec::new(),
+    });
+    if db.chat_sessions.len() > 50 {
+        let excess = db.chat_sessions.len() - 50;
+        db.chat_sessions.drain(0..excess);
+    }
+    save_user_db(app_handle.clone(), db.clone())?;
+    Ok(db)
+}
+
+#[tauri::command]
+fn delete_chat_session(app_handle: tauri::AppHandle, session_id: String) -> Result<UserDB, String> {
+    let mut db = get_user_db(app_handle.clone())?;
+    db.chat_sessions.retain(|s| s.id != session_id);
+    save_user_db(app_handle.clone(), db.clone())?;
+    Ok(db)
+}
+
+#[tauri::command]
+async fn generate_chat_title(app_handle: tauri::AppHandle, session_id: String, first_msg: String) -> Result<UserDB, String> {
+    let mut db = get_user_db(app_handle.clone())?;
+    let mut generated_title = "New Chat".to_string();
+
+    if !db.gemini_api_key.is_empty() {
+        let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={}", db.gemini_api_key);
+        let payload = serde_json::json!({
+            "contents": [{
+                "parts": [{"text": format!("Extract a very short 2-3 word title for this prompt. No quotes, no intro. Prompt: {}", first_msg)}]
+            }]
+        });
+        let client = reqwest::Client::new();
+        if let Ok(res) = client.post(&url).header("Content-Type", "application/json").json(&payload).send().await {
+            if res.status().is_success() {
+                if let Ok(json) = res.json::<serde_json::Value>().await {
+                    if let Some(text) = json["candidates"][0]["content"]["parts"][0]["text"].as_str() {
+                        generated_title = text.trim().to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    if generated_title != "New Chat" {
+        if let Some(session) = db.chat_sessions.iter_mut().find(|s| s.id == session_id) {
+            session.title = generated_title;
+        }
+        save_user_db(app_handle.clone(), db.clone())?;
     }
     
-    save_user_db(app_handle.clone(), db.clone())?;
     Ok(db)
 }
 
@@ -784,6 +874,9 @@ fn main() {
             ask_ai,
             ask_ai_audio,
             save_chat_history,
+            create_chat_session,
+            delete_chat_session,
+            generate_chat_title,
             sync_leaderboard,
             buy_pro_shop_upgrade
         ])

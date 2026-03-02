@@ -164,26 +164,42 @@
             </section>
 
             <section class="grid" style="grid-template-columns: 1fr;">
-                <div class="card glass-morph" style="display: flex; flex-direction: column; height: 500px;">
+                <div class="card glass-morph" style="display: flex; flex-direction: column; height: 600px;">
                     <h3>🤖 AI Financial Tutor (Gemini Pro)</h3>
                     <p>Ask any money question! I'll explain it simply.</p>
 
-                    <div id="chat-history"
-                        style="flex: 1; overflow-y: auto; background: var(--input-bg); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 0.5rem;">
+                    <div style="display: flex; flex: 1; gap: 1rem; min-height: 0;">
+                        <!-- Sidebar -->
                         <div
-                            style="background: var(--glass); padding: 0.5rem; border-radius: 5px; align-self: flex-start; max-width: 80%;">
-                            <strong>Tutor:</strong> Hi there! I'm your AI money guide. What would you like to learn
-                            today?
+                            style="width: 250px; background: var(--glass); border-radius: 10px; border: 1px solid var(--glass-border); display: flex; flex-direction: column; overflow: hidden;">
+                            <button onclick="createNewChat()" style="margin: 0.5rem; background: var(--primary);">+ New
+                                Chat</button>
+                            <div id="chat-session-list"
+                                style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.2rem; padding: 0.5rem;">
+                                <!-- Populated via JS -->
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="form-group" style="display: flex; gap: 0.5rem; margin-top: auto;">
-                        <input type="text" id="chat-input" placeholder="e.g., What is a Roth IRA?" style="flex: 1;"
-                            onkeypress="if(event.key === 'Enter') sendChat()">
-                        <button id="btn-record-chat" onclick="toggleRecording()"
-                            style="width: auto; padding: 0 1rem; background: var(--secondary);">🎙️</button>
-                        <button id="btn-send-chat" onclick="sendChat()"
-                            style="width: auto; padding: 0 1.5rem;">Send</button>
+                        <!-- Active Chat -->
+                        <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+                            <div id="chat-history"
+                                style="flex: 1; overflow-y: auto; background: var(--input-bg); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 0.5rem;">
+                                <div
+                                    style="background: var(--glass); padding: 0.5rem; border-radius: 5px; align-self: flex-start; max-width: 80%;">
+                                    <strong>Tutor:</strong> Hi there! I'm your AI money guide. What would you like to
+                                    learn today?
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="display: flex; gap: 0.5rem; margin-top: auto;">
+                                <input type="text" id="chat-input" placeholder="e.g., What is a Roth IRA?"
+                                    style="flex: 1; margin: 0;" onkeypress="if(event.key === 'Enter') sendChat()">
+                                <button id="btn-record-chat" onclick="toggleRecording()"
+                                    style="width: auto; padding: 0 1rem; background: var(--secondary); margin: 0;">🎙️</button>
+                                <button id="btn-send-chat" onclick="sendChat()"
+                                    style="width: auto; padding: 0 1.5rem; margin: 0;">Send</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
