@@ -490,8 +490,31 @@ fn calculate_debt_payoff(debt1: f64, debt2: f64, monthly_payment: f64) -> Result
     })
 }
 
+async fn fetch_exchange_rate(target_currency: &str) -> f64 {
+    if target_currency == "USD" {
+        return 1.0;
+    }
+    
+    let url = "https://open.er-api.com/v6/latest/USD";
+    let client = reqwest::Client::new();
+    
+    match client.get(url).send().await {
+        Ok(res) => {
+            if let Ok(json) = res.json::<serde_json::Value>().await {
+                if let Some(rate) = json["rates"][target_currency].as_f64() {
+                    return rate;
+                }
+            }
+        },
+        Err(_) => {}
+    }
+    1.0 // Fallback to 1:1 if the API fails
+}
+
 #[tauri::command]
-async fn fetch_stock_price(ticker: String) -> Result<f64, String> {
+async fn fetch_stock_price(app_handle: tauri::AppHandle, ticker: String) -> Result<f64, String> {
+    let db = get_user_db(app_handle.clone())?;
+    
     // Call Yahoo Finance directly with a User-Agent to bypass generic bot blocks
     let url = format!("https://query1.finance.yahoo.com/v8/finance/chart/{}?interval=1d", ticker);
     
@@ -505,7 +528,8 @@ async fn fetch_stock_price(ticker: String) -> Result<f64, String> {
             if res.status().is_success() {
                 if let Ok(json) = res.json::<serde_json::Value>().await {
                     if let Some(price) = json["chart"]["result"][0]["meta"]["regularMarketPrice"].as_f64() {
-                        return Ok(price);
+                        let multiplier = fetch_exchange_rate(&db.currency).await;
+                        return Ok(price * multiplier);
                     }
                 }
             }
@@ -520,10 +544,11 @@ async fn fetch_stock_price(ticker: String) -> Result<f64, String> {
 
 #[tauri::command]
 async fn buy_stock(app_handle: tauri::AppHandle, ticker: String, shares: u32) -> Result<UserDB, String> {
-    let price = fetch_stock_price(ticker.clone()).await?;
+    let mut db = get_user_db(app_handle.clone())?;
+    let raw_price = fetch_stock_price(app_handle.clone(), ticker.clone()).await?;
+    let price = raw_price;
     let total_cost = (price * shares as f64).round() as u32;
 
-    let mut db = get_user_db(app_handle.clone())?;
     if db.coins < total_cost {
         return Err(format!("Insufficient coins. Need {}, have {}", total_cost, db.coins));
     }
@@ -543,7 +568,8 @@ async fn sell_stock(app_handle: tauri::AppHandle, ticker: String, shares: u32) -
         return Err(format!("Insufficient shares. Need {}, own {}", shares, owned));
     }
 
-    let price = fetch_stock_price(ticker.clone()).await?;
+    let raw_price = fetch_stock_price(app_handle.clone(), ticker.clone()).await?;
+    let price = raw_price;
     let total_value = (price * shares as f64).round() as u32;
 
     db.coins += total_value;
