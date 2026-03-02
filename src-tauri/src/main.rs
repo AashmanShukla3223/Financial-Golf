@@ -54,6 +54,7 @@ pub struct UserDB {
     pub gemini_api_key: String,
     pub currency: String,
     pub portfolio: std::collections::HashMap<String, u32>,
+    pub chat_history: Vec<(String, String)>,
 }
 
 impl Default for UserDB {
@@ -66,6 +67,7 @@ impl Default for UserDB {
             gemini_api_key: "".to_string(),
             currency: "USD".to_string(),
             portfolio: std::collections::HashMap::new(),
+            chat_history: Vec::new(),
         }
     }
 }
@@ -587,6 +589,22 @@ async fn sell_stock(app_handle: tauri::AppHandle, ticker: String, shares: u32) -
 // 5. AI FINANCIAL TUTOR
 // ---------------------------
 #[tauri::command]
+fn save_chat_history(app_handle: tauri::AppHandle, user_msg: String, ai_msg: String) -> Result<UserDB, String> {
+    let mut db = get_user_db(app_handle.clone())?;
+    
+    db.chat_history.push((user_msg, ai_msg));
+    
+    // Prune logic: Enforce strictly 50 trailing memory items to save disk space
+    if db.chat_history.len() > 50 {
+        let excess = db.chat_history.len() - 50;
+        db.chat_history.drain(0..excess);
+    }
+    
+    save_user_db(app_handle.clone(), db.clone())?;
+    Ok(db)
+}
+
+#[tauri::command]
 async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, String> {
     let db = get_user_db(app_handle.clone())?;
     if db.gemini_api_key.is_empty() {
@@ -765,6 +783,7 @@ fn main() {
             sell_stock,
             ask_ai,
             ask_ai_audio,
+            save_chat_history,
             sync_leaderboard,
             buy_pro_shop_upgrade
         ])

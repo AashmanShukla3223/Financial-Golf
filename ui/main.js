@@ -147,6 +147,26 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
             // @ts-ignore
             window.updatePortfolioDisplay(db);
         }
+        // Restore AI Chat History
+        if (db && db.chat_history && db.chat_history.length > 0) {
+            const historyDiv = document.getElementById('chat-history');
+            if (historyDiv) {
+                db.chat_history.forEach((turn) => {
+                    const [userMsg, aiMsg] = turn;
+                    // Render User Bubble
+                    const userBubble = document.createElement('div');
+                    userBubble.style.cssText = "background: var(--primary); color: white; padding: 0.5rem; border-radius: 5px; align-self: flex-end; max-width: 80%; margin-top: 0.5rem;";
+                    userBubble.innerHTML = `<strong>You:</strong> ${userMsg}`;
+                    historyDiv.appendChild(userBubble);
+                    // Render AI Bubble
+                    const aiBubble = document.createElement('div');
+                    aiBubble.style.cssText = "background: var(--glass); margin-top: 0.5rem; padding: 0.5rem; border-radius: 5px; align-self: flex-start; max-width: 80%;";
+                    aiBubble.innerHTML = `<strong>Tutor:</strong> ${aiMsg.replace(/\n/g, '<br>')}`;
+                    historyDiv.appendChild(aiBubble);
+                });
+                historyDiv.scrollTop = historyDiv.scrollHeight;
+            }
+        }
     }
     catch (e) {
         console.error("Failed to load UserDB on startup:", e);
@@ -569,6 +589,7 @@ window.sendChat = function () {
         try {
             const response = yield invoke('ask_ai', { prompt: message });
             aiBubble.innerHTML = `<strong>Tutor:</strong> ${response.replace(/\n/g, '<br>')}`;
+            yield invoke('save_chat_history', { userMsg: message, aiMsg: response });
         }
         catch (e) {
             aiBubble.innerHTML = `<strong>Tutor:</strong> ❌ ${e}`;
@@ -710,6 +731,7 @@ function sendAudioChat(base64data) {
         try {
             const response = yield invoke('ask_ai_audio', { audioBase64: base64data });
             aiBubble.innerHTML = `<strong>Tutor:</strong> ${response.replace(/\n/g, '<br>')}`;
+            yield invoke('save_chat_history', { userMsg: "🎤 (Voice Message)", aiMsg: response });
         }
         catch (e) {
             aiBubble.innerHTML = `<strong>Tutor:</strong> ❌ ${e}`;
