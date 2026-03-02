@@ -134,6 +134,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const db: any = await invoke('get_user_db');
         if (db.google_cookie_1psid) {
             (document.getElementById('gemini-key-input') as HTMLInputElement).value = "•••••••••••• (Authorized)";
+            const authBtn = document.getElementById('btn-google-auth') as HTMLButtonElement;
+            if (authBtn) {
+                authBtn.innerHTML = "Authorized!";
+                authBtn.style.background = "#0f9d58";
+            }
         }
         if (db && db.currency) {
             globalCurrency = db.currency;
@@ -537,14 +542,22 @@ window.saveSettings = async function () {
 // @ts-ignore
 window.googleAccountAuth = async function () {
     const btn = document.getElementById('btn-google-auth') as HTMLButtonElement;
+    if (btn && btn.innerHTML === "Authorized!") {
+        alert("Google Account is already connected permanently! You're good to go.");
+        return;
+    }
+
     if (btn) btn.innerHTML = "Opening Google...";
     try {
         await invoke('open_auth_window');
-        if (btn) btn.innerHTML = "Authorized!";
+        if (btn) {
+            btn.innerHTML = "Authorized!";
+            btn.style.background = "#0f9d58";
+        }
         (document.getElementById('gemini-key-input') as HTMLInputElement).value = "•••••••••••• (Authorized)";
     } catch (e) {
         alert("Google Error: " + e);
-        if (btn) btn.innerHTML = "Login Error";
+        if (btn) btn.innerHTML = "Connect Google Account";
     }
 }
 

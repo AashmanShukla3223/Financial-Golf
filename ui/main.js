@@ -137,6 +137,11 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
         const db = yield invoke('get_user_db');
         if (db.google_cookie_1psid) {
             document.getElementById('gemini-key-input').value = "•••••••••••• (Authorized)";
+            const authBtn = document.getElementById('btn-google-auth');
+            if (authBtn) {
+                authBtn.innerHTML = "Authorized!";
+                authBtn.style.background = "#0f9d58";
+            }
         }
         if (db && db.currency) {
             globalCurrency = db.currency;
@@ -551,7 +556,7 @@ window.saveSettings = function () {
     return __awaiter(this, void 0, void 0, function* () {
         const currency = document.getElementById('global-currency').value;
         try {
-            yield invoke('save_settings', { __secure_1psid: "", __secure_1psidts: "", currency });
+            yield invoke('save_settings', { currency });
             globalCurrency = currency;
             document.getElementById('settings-modal').classList.add('hidden');
         }
@@ -564,18 +569,24 @@ window.saveSettings = function () {
 window.googleAccountAuth = function () {
     return __awaiter(this, void 0, void 0, function* () {
         const btn = document.getElementById('btn-google-auth');
+        if (btn && btn.innerHTML === "Authorized!") {
+            alert("Google Account is already connected permanently! You're good to go.");
+            return;
+        }
         if (btn)
             btn.innerHTML = "Opening Google...";
         try {
             yield invoke('open_auth_window');
-            if (btn)
+            if (btn) {
                 btn.innerHTML = "Authorized!";
+                btn.style.background = "#0f9d58";
+            }
             document.getElementById('gemini-key-input').value = "•••••••••••• (Authorized)";
         }
         catch (e) {
             alert("Google Error: " + e);
             if (btn)
-                btn.innerHTML = "Login Error";
+                btn.innerHTML = "Connect Google Account";
         }
     });
 };
