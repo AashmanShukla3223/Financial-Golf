@@ -736,7 +736,8 @@ fn main() {
             sell_stock,
             ask_ai,
             ask_ai_audio,
-            sync_leaderboard
+            sync_leaderboard,
+            buy_pro_shop_upgrade
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
