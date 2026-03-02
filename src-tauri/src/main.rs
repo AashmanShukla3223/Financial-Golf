@@ -156,10 +156,8 @@ fn increment_quiz_streak(app: tauri::AppHandle) -> Result<UserDB, String> {
 }
 
 #[tauri::command]
-fn save_settings(app: tauri::AppHandle, __secure_1psid: String, __secure_1psidts: String, currency: String) -> Result<UserDB, String> {
+fn save_settings(app: tauri::AppHandle, currency: String) -> Result<UserDB, String> {
     let mut db = get_user_db(app.clone())?;
-    db.google_cookie_1psid = __secure_1psid;
-    db.google_cookie_1psidts = __secure_1psidts;
     db.currency = currency;
     save_user_db(app.clone(), db.clone())?;
     Ok(db)
@@ -774,8 +772,8 @@ async fn open_auth_window(app_handle: tauri::AppHandle) -> Result<(), String> {
                     psidts = c.substring('__Secure-1PSIDTS='.length);
                 }
             }
-            if (psid && psidts) {
-                window.__TAURI__.event.emit('cookies_extracted', { psid: psid, psidts: psidts });
+            if (psid) {
+                window.__TAURI__.event.emit('cookies_extracted', { psid: psid, psidts: psidts || "" });
             }
         }, 3000);
     "#;
@@ -795,7 +793,8 @@ async fn open_auth_window(app_handle: tauri::AppHandle) -> Result<(), String> {
     app_handle.listen_global("cookies_extracted", move |event| {
         if let Some(payload) = event.payload() {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(payload) {
-                if let (Some(psid), Some(psidts)) = (json["psid"].as_str(), json["psidts"].as_str()) {
+                if let Some(psid) = json["psid"].as_str() {
+                    let psidts = json["psidts"].as_str().unwrap_or("");
                     if let Ok(mut db) = get_user_db(local_handle.clone()) {
                         db.google_cookie_1psid = psid.to_string();
                         db.google_cookie_1psidts = psidts.to_string();

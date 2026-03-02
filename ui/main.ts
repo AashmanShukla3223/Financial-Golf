@@ -526,7 +526,7 @@ window.openSettings = function () {
 window.saveSettings = async function () {
     const currency = (document.getElementById('global-currency') as HTMLSelectElement).value;
     try {
-        await invoke('save_settings', { __secure_1psid: "", __secure_1psidts: "", currency });
+        await invoke('save_settings', { currency });
         globalCurrency = currency;
         document.getElementById('settings-modal')!.classList.add('hidden');
     } catch (e) {
