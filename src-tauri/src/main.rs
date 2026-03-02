@@ -9,7 +9,6 @@ use serde::{Serialize, Deserialize};
 use tauri::{State, Manager};
 use ts_rs::TS;
 use sha2::{Sha256, Digest};
-use hex;
 
 // Enterprise Standard: Centralized String Error Mapping
 fn format_err<E: std::fmt::Display>(err: E) -> String {
@@ -787,8 +786,6 @@ async fn open_auth_window(app_handle: tauri::AppHandle) -> Result<(), String> {
         WindowUrl::External("https://gemini.google.com/app".parse().unwrap())
     )
     .title("Google Authentication")
-    .width(800.0)
-    .height(600.0)
     .initialization_script(injection_script)
     .build()
     .map_err(|e| format!("Failed to build auth window: {}", e))?;
