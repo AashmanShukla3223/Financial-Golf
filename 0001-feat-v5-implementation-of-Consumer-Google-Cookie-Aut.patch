@@ -1,0 +1,843 @@
+From a79b14933a95a84dda9bfec7e4d7ac126ace3d37 Mon Sep 17 00:00:00 2001
+From: AashmanShukla3223 <aashmanshukla323@gmail.com>
+Date: Mon, 2 Mar 2026 11:55:53 +0530
+Subject: [PATCH] feat(v5): implementation of Consumer Google Cookie
+ Authentication Protocol bypassing developer quotas via raw Header spoofing
+
+---
+ src-tauri/Cargo.lock      | 207 +++++++++++++++++++++++++++++++++++++-
+ src-tauri/Cargo.toml      |   7 +-
+ src-tauri/build_error.log |  34 +++++++
+ src-tauri/build_error.txt | Bin 0 -> 4358 bytes
+ src-tauri/src/main.rs     | 130 +++++++++++++++++++-----
+ ui/index.html             |  11 +-
+ ui/main.js                |  28 +++++-
+ ui/main.ts                |  23 ++++-
+ 8 files changed, 395 insertions(+), 45 deletions(-)
+ create mode 100644 src-tauri/build_error.log
+ create mode 100644 src-tauri/build_error.txt
+
+diff --git a/src-tauri/Cargo.lock b/src-tauri/Cargo.lock
+index 2e94336..225211b 100644
+--- a/src-tauri/Cargo.lock
++++ b/src-tauri/Cargo.lock
+@@ -333,6 +333,44 @@ version = "0.4.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+ 
++[[package]]
++name = "cookie"
++version = "0.17.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "7efb37c3e1ccb1ff97164ad95ac1606e8ccd35b3fa0a7d99a304c7f4a428cc24"
++dependencies = [
++ "percent-encoding",
++ "time",
++ "version_check",
++]
++
++[[package]]
++name = "cookie"
++version = "0.18.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "4ddef33a339a91ea89fb53151bd0a4689cfce27055c291dfa69945475d22c747"
++dependencies = [
++ "time",
++ "version_check",
++]
++
++[[package]]
++name = "cookie_store"
++version = "0.20.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "387461abbc748185c3a6e1673d826918b450b87ff22639429c694619a83b6cf6"
++dependencies = [
++ "cookie 0.17.0",
++ "idna 0.3.0",
++ "log",
++ "publicsuffix",
++ "serde",
++ "serde_derive",
++ "serde_json",
++ "time",
++ "url",
++]
++
+ [[package]]
+ name = "core-foundation"
+ version = "0.9.4"
+@@ -700,7 +738,8 @@ dependencies = [
+ name = "financial-golf"
+ version = "1.0.0"
+ dependencies = [
+- "hex",
++ "cookie 0.18.1",
++ "futures",
+  "reqwest",
+  "serde",
+  "serde_json",
+@@ -782,6 +821,21 @@ dependencies = [
+  "new_debug_unreachable",
+ ]
+ 
++[[package]]
++name = "futures"
++version = "0.3.32"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8b147ee9d1f6d097cef9ce628cd2ee62288d963e16fb287bd9286455b241382d"
++dependencies = [
++ "futures-channel",
++ "futures-core",
++ "futures-executor",
++ "futures-io",
++ "futures-sink",
++ "futures-task",
++ "futures-util",
++]
++
+ [[package]]
+ name = "futures-channel"
+ version = "0.3.32"
+@@ -789,6 +843,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "07bbe89c50d7a535e539b8c17bc0b49bdb77747034daa8087407d655f3f7cc1d"
+ dependencies = [
+  "futures-core",
++ "futures-sink",
+ ]
+ 
+ [[package]]
+@@ -843,9 +898,13 @@ version = "0.3.32"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "389ca41296e6190b48053de0321d02a77f32f8a5d2461dd38762c0593805c6d6"
+ dependencies = [
++ "futures-channel",
+  "futures-core",
++ "futures-io",
+  "futures-macro",
++ "futures-sink",
+  "futures-task",
++ "memchr",
+  "pin-project-lite",
+  "slab",
+ ]
+@@ -1308,6 +1367,20 @@ dependencies = [
+  "want",
+ ]
+ 
++[[package]]
++name = "hyper-rustls"
++version = "0.24.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "ec3efd23720e2049821a693cbc7e65ea87c72f1c58ff2f9522ff332b1491e590"
++dependencies = [
++ "futures-util",
++ "http",
++ "hyper",
++ "rustls",
++ "tokio",
++ "tokio-rustls",
++]
++
+ [[package]]
+ name = "hyper-tls"
+ version = "0.5.0"
+@@ -1448,6 +1521,16 @@ version = "1.0.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+ 
++[[package]]
++name = "idna"
++version = "0.3.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e14ddfc70884202db2244c223200c204c2bda1bc6e0998d11b5e024d657209e6"
++dependencies = [
++ "unicode-bidi",
++ "unicode-normalization",
++]
++
+ [[package]]
+ name = "idna"
+ version = "1.1.0"
+@@ -2304,6 +2387,22 @@ dependencies = [
+  "unicode-ident",
+ ]
+ 
++[[package]]
++name = "psl-types"
++version = "2.0.11"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "33cb294fe86a74cbcf50d4445b37da762029549ebeea341421c7c70370f86cac"
++
++[[package]]
++name = "publicsuffix"
++version = "2.3.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "6f42ea446cab60335f76979ec15e12619a2165b5ae2c12166bef27d283a9fadf"
++dependencies = [
++ "idna 1.1.0",
++ "psl-types",
++]
++
+ [[package]]
+ name = "quick-xml"
+ version = "0.38.4"
+@@ -2501,6 +2600,8 @@ checksum = "dd67538700a17451e7cba03ac727fb961abb7607553461627b97de0b89cf4a62"
+ dependencies = [
+  "base64 0.21.7",
+  "bytes",
++ "cookie 0.17.0",
++ "cookie_store",
+  "encoding_rs",
+  "futures-core",
+  "futures-util",
+@@ -2508,6 +2609,7 @@ dependencies = [
+  "http",
+  "http-body",
+  "hyper",
++ "hyper-rustls",
+  "hyper-tls",
+  "ipnet",
+  "js-sys",
+@@ -2517,6 +2619,7 @@ dependencies = [
+  "once_cell",
+  "percent-encoding",
+  "pin-project-lite",
++ "rustls",
+  "rustls-pemfile",
+  "serde",
+  "serde_json",
+@@ -2525,14 +2628,30 @@ dependencies = [
+  "system-configuration",
+  "tokio",
+  "tokio-native-tls",
++ "tokio-rustls",
+  "tower-service",
+  "url",
+  "wasm-bindgen",
+  "wasm-bindgen-futures",
+  "web-sys",
++ "webpki-roots",
+  "winreg 0.50.0",
+ ]
+ 
++[[package]]
++name = "ring"
++version = "0.17.14"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7"
++dependencies = [
++ "cc",
++ "cfg-if",
++ "getrandom 0.2.17",
++ "libc",
++ "untrusted",
++ "windows-sys 0.52.0",
++]
++
+ [[package]]
+ name = "rustc_version"
+ version = "0.4.1"
+@@ -2555,6 +2674,18 @@ dependencies = [
+  "windows-sys 0.61.2",
+ ]
+ 
++[[package]]
++name = "rustls"
++version = "0.21.12"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3f56a14d1f48b391359b22f731fd4bd7e43c97f3c50eee276f3aa09c94784d3e"
++dependencies = [
++ "log",
++ "ring",
++ "rustls-webpki",
++ "sct",
++]
++
+ [[package]]
+ name = "rustls-pemfile"
+ version = "1.0.4"
+@@ -2564,6 +2695,16 @@ dependencies = [
+  "base64 0.21.7",
+ ]
+ 
++[[package]]
++name = "rustls-webpki"
++version = "0.101.7"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8b6275d1ee7a1cd780b64aca7726599a1dbc893b1e64144529e55c3c2f745765"
++dependencies = [
++ "ring",
++ "untrusted",
++]
++
+ [[package]]
+ name = "rustversion"
+ version = "1.0.22"
+@@ -2630,6 +2771,16 @@ version = "1.2.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+ 
++[[package]]
++name = "sct"
++version = "0.7.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "da046153aa2352493d6cb7da4b6e5c0c057d8a1d0a9aa8560baffdd945acd414"
++dependencies = [
++ "ring",
++ "untrusted",
++]
++
+ [[package]]
+ name = "security-framework"
+ version = "3.7.0"
+@@ -3440,6 +3591,21 @@ dependencies = [
+  "zerovec",
+ ]
+ 
++[[package]]
++name = "tinyvec"
++version = "1.10.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "bfa5fdc3bce6191a1dbc8c02d5c8bffcf557bafa17c124c5264a458f1b0613fa"
++dependencies = [
++ "tinyvec_macros",
++]
++
++[[package]]
++name = "tinyvec_macros"
++version = "0.1.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
++
+ [[package]]
+ name = "tokio"
+ version = "1.49.0"
+@@ -3478,6 +3644,16 @@ dependencies = [
+  "tokio",
+ ]
+ 
++[[package]]
++name = "tokio-rustls"
++version = "0.24.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "c28327cf380ac148141087fbfb9de9d7bd4e84ab5d2c28fbc911d753de8a7081"
++dependencies = [
++ "rustls",
++ "tokio",
++]
++
+ [[package]]
+ name = "tokio-util"
+ version = "0.7.18"
+@@ -3668,12 +3844,27 @@ version = "1.19.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
+ 
++[[package]]
++name = "unicode-bidi"
++version = "0.3.18"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5"
++
+ [[package]]
+ name = "unicode-ident"
+ version = "1.0.24"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
+ 
++[[package]]
++name = "unicode-normalization"
++version = "0.1.25"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8"
++dependencies = [
++ "tinyvec",
++]
++
+ [[package]]
+ name = "unicode-segmentation"
+ version = "1.12.0"
+@@ -3686,6 +3877,12 @@ version = "0.2.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+ 
++[[package]]
++name = "untrusted"
++version = "0.9.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
++
+ [[package]]
+ name = "url"
+ version = "2.5.8"
+@@ -3693,7 +3890,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
+ dependencies = [
+  "form_urlencoded",
+- "idna",
++ "idna 1.1.0",
+  "percent-encoding",
+  "serde",
+  "serde_derive",
+@@ -3971,6 +4168,12 @@ dependencies = [
+  "system-deps 6.2.2",
+ ]
+ 
++[[package]]
++name = "webpki-roots"
++version = "0.25.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "5f20c57d8d7db6d3b86154206ae5d8fba62dd39573114de97c2cb0578251f8e1"
++
+ [[package]]
+ name = "webview2-com"
+ version = "0.19.1"
+diff --git a/src-tauri/Cargo.toml b/src-tauri/Cargo.toml
+index 6b6ff26..5b5a9d7 100644
+--- a/src-tauri/Cargo.toml
++++ b/src-tauri/Cargo.toml
+@@ -14,9 +14,10 @@ serde = { version = "1.0", features = ["derive"] }
+ serde_json = "1.0"
+ ts-rs = "7.0"
+ sha2 = "0.10.8"
+-hex = "0.4.3"
+-reqwest = { version = "0.11", features = ["json"] }
+-tokio = { version = "1", features = ["full"] }
++reqwest = { version = "0.11", features = ["json", "cookies", "rustls-tls"] }
++tokio = { version = "1", features = ["full", "sync", "time"] }
++cookie = "0.18"
++futures = "0.3"
+ 
+ [features]
+ default = ["custom-protocol"]
+diff --git a/src-tauri/build_error.log b/src-tauri/build_error.log
+new file mode 100644
+index 0000000..a3f87e7
+--- /dev/null
++++ b/src-tauri/build_error.log
+@@ -0,0 +1,34 @@
++   Compiling proc-macro2 v1.0.106
++   Compiling quote v1.0.44
++   Compiling serde_core v1.0.228
++   Compiling zerocopy v0.8.40
++   Compiling serde v1.0.228
++   Compiling syn v1.0.109
++   Compiling parking_lot_core v0.9.12
++   Compiling getrandom v0.1.16
++   Compiling zmij v1.0.21
++   Compiling icu_normalizer_data v2.1.1
++   Compiling icu_properties_data v2.1.2
++   Compiling phf_shared v0.11.3
++error: linker `link.exe` not found
++  |
++  = note: program not found
++
++note: the msvc targets depend on the msvc linker but `link.exe` was not found
++
++note: please ensure that Visual Studio 2017 or later, or Build Tools for Visual Studio were installed with the Visual C++ option.
++
++note: VS Code is a different product, and is not sufficient.
++
++error: could not compile `quote` (build script) due to 1 previous error
++warning: build failed, waiting for other jobs to finish...
++error: could not compile `icu_normalizer_data` (build script) due to 1 previous error
++error: could not compile `proc-macro2` (build script) due to 1 previous error
++error: could not compile `icu_properties_data` (build script) due to 1 previous error
++error: could not compile `parking_lot_core` (build script) due to 1 previous error
++error: could not compile `serde_core` (build script) due to 1 previous error
++error: could not compile `zmij` (build script) due to 1 previous error
++error: could not compile `getrandom` (build script) due to 1 previous error
++error: could not compile `serde` (build script) due to 1 previous error
++error: could not compile `syn` (build script) due to 1 previous error
++error: could not compile `zerocopy` (build script) due to 1 previous error
+diff --git a/src-tauri/build_error.txt b/src-tauri/build_error.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..902717c4acf57828de6f76e12f1905fe8ef86419
+GIT binary patch
+literal 4358
+zcmd6qTWb?h6ovP*;C~o=5Je3pRBbB?T2y=yywDewCQYa9^pe(@NpFZhU0vVVIhh%g
+zCP5KGNHcTJzO23W<(&Td*|(nMwr3}n*t)*{+0gs3omyr``VO?8*iE~km0UZ0d!XH(
+zetGL?@66iPvWNP%_4jd*ePN|`TtAiVw%+=-AN;M`6Ukxmo>p7olLSvadF$(`Cr$VH
+zMm~;g*S=UGfA}u7JJfS#w<Pm)Bv+3FKdEF7wfB6qzbzf&*|9C{<pFyx&!t@iq#a4#
+z4k)9=H<BymZ$lOwV?-Qzn*WQ&G^rnU-3N{9_9oZs_Th3v+?2viMsvHgx8ieG&lQHc
+zMzu=r-$|~tkIFLKWzx%nUerj%9ddU@)}~d7TXc;@swE;ogUVT#|1#v3s=F&spY5yN
+z*Y5|RIv#oU$^dO@uav*Oeoyt5DS|<$t7sQaUMurQ`dr$3JyBU68}Yo7FSq6zRCF%Z
+zcC_l8z-OikPsJ@=;TR$()T>)@O<#|@<YTgvz6ph6ch6P#tk_Bo{WM)H7s8UuYpP1_
+z2fV4!R#rOd$<;Y_u7VAE`9#cJjyO0AJ-n)FUm5kMvoZ}yh2qaB7V%FUr^-dH9`y;c
+zrM$pOJtm|a)0!}~71wNL3q>**$5Nk3YjZUB#0Pcf`6OpCDxYe2_qldGBUjSO>|m@J
+z{dc508#lX|axql&-Zk`K9x5+YzPFTZ>aaJq-3ffO<}%Wk)mR(oJenIt9m^n87qgz8
+z@tV0Fi$___R{F>1|6z#68SReOT3Wr(w<|e3ab7U1hM}h-W8cTzJsZn$o+Klt_CnUk
+zSG0j<(+(@X>zZXa9}?xOP<_D=+;R?51%=+xpu@-m9i9jml{Kk}WHU-m8e*9qDe~v?
+zhL?zVHri9!PlE=14xU0Day>atFi{<eZ7NIb`RU0d9SS>B(Iq?T>bA~aqG9eG1wAsx
+zg!MJ>y_BAxm5F`QIwvrA!HHhe4;oEh=fdXr=<Px{KtvQU=?r9A-Pc=Wv}togHv?uj
+zvP`Hr+go9U)p|ZR<=<y5IpZb)+Sn~Hu&a+_8pu|xogKy5*E`XB=etMOkJ*7y^y$z{
+zR<KavXx2OPl+%VdqdsU^k2fk1cC9)EsQ)`w-A^1tAsy~G#LhVgRy0dlN|Z&HVp^oC
+zVRAeSQCE1JXX<*Oea=(5rtW7~QIlu#0tZop+_*-SbNZ8875P7qx9#8!4Mzk&_$ee+
+z-Igje_+FG9tafE<k%<U<$Tu0B%^vbFIFG%5K|k+wTRz;~z{lkMe)*6#>w`Ya)m_t1
+zspUi8RgX|v%^Tb@;+(t{EhEZ`P0%&x0F^R(7A!hR|85p^b!+ll;c{Xls_MUh<;*U3
+I`v1w^Z%Uo1H2?qr
+
+literal 0
+HcmV?d00001
+
+diff --git a/src-tauri/src/main.rs b/src-tauri/src/main.rs
+index 61b2555..a91b925 100644
+--- a/src-tauri/src/main.rs
++++ b/src-tauri/src/main.rs
+@@ -59,7 +59,8 @@ pub struct UserDB {
+     pub coins: u32,
+     pub high_score: u32,
+     pub quiz_streak: u32,
+-    pub gemini_api_key: String,
++    pub google_cookie_1psid: String,
++    pub google_cookie_1psidts: String,
+     pub currency: String,
+     pub portfolio: std::collections::HashMap<String, u32>,
+     pub chat_sessions: Vec<ChatSession>,
+@@ -72,7 +73,8 @@ impl Default for UserDB {
+             coins: 0, 
+             high_score: 0, 
+             quiz_streak: 0,
+-            gemini_api_key: "".to_string(),
++            google_cookie_1psid: "".to_string(),
++            google_cookie_1psidts: "".to_string(),
+             currency: "USD".to_string(),
+             portfolio: std::collections::HashMap::new(),
+             chat_sessions: Vec::new(),
+@@ -154,9 +156,10 @@ fn increment_quiz_streak(app: tauri::AppHandle) -> Result<UserDB, String> {
+ }
+ 
+ #[tauri::command]
+-fn save_settings(app: tauri::AppHandle, api_key: String, currency: String) -> Result<UserDB, String> {
++fn save_settings(app: tauri::AppHandle, __secure_1psid: String, __secure_1psidts: String, currency: String) -> Result<UserDB, String> {
+     let mut db = get_user_db(app.clone())?;
+-    db.gemini_api_key = api_key;
++    db.google_cookie_1psid = __secure_1psid;
++    db.google_cookie_1psidts = __secure_1psidts;
+     db.currency = currency;
+     save_user_db(app.clone(), db.clone())?;
+     Ok(db)
+@@ -665,15 +668,26 @@ async fn generate_chat_title(app_handle: tauri::AppHandle, session_id: String, f
+     let mut db = get_user_db(app_handle.clone())?;
+     let mut generated_title = "New Chat".to_string();
+ 
+-    if !db.gemini_api_key.is_empty() {
+-        let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={}", db.gemini_api_key);
++    if !db.google_cookie_1psid.is_empty() {
++        // Unofficial Consumer Cookie Spoofing Endpoint
++        let url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
+         let payload = serde_json::json!({
+             "contents": [{
+                 "parts": [{"text": format!("Extract a very short 2-3 word title for this prompt. No quotes, no intro. Prompt: {}", first_msg)}]
+             }]
+         });
++        
++        // Native Zero-Linker Architecture: Injecting the Cookie into Reqwest Headers
+         let client = reqwest::Client::new();
+-        if let Ok(res) = client.post(&url).header("Content-Type", "application/json").json(&payload).send().await {
++        let cookie_string = format!("__Secure-1PSID={}; __Secure-1PSIDTS={}", db.google_cookie_1psid, db.google_cookie_1psidts);
++        
++        if let Ok(res) = client.post(url)
++            .header("Content-Type", "application/json")
++            .header("Cookie", cookie_string)
++            .json(&payload)
++            .send()
++            .await 
++        {
+             if res.status().is_success() {
+                 if let Ok(json) = res.json::<serde_json::Value>().await {
+                     if let Some(text) = json["candidates"][0]["content"]["parts"][0]["text"].as_str() {
+@@ -697,14 +711,11 @@ async fn generate_chat_title(app_handle: tauri::AppHandle, session_id: String, f
+ #[tauri::command]
+ async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String, String> {
+     let db = get_user_db(app_handle.clone())?;
+-    if db.gemini_api_key.is_empty() {
+-        return Err("API Key not set. Please configure it in settings.".to_string());
++    if db.google_cookie_1psid.is_empty() {
++        return Err("Google Account not connected. Please login in settings.".to_string());
+     }
+ 
+-    // Using gemini-3-flash-preview per user request
+-    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={}", db.gemini_api_key);
+-    
+-    // Construct the Gemini API payload
++    let url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
+     let payload = serde_json::json!({
+         "contents": [{
+             "parts": [{"text": format!("You are a financial tutor inside an educational app for a 12-year-old student. Explain this simply and enthusiastically, keeping it under 3 paragraphs: {}", prompt)}]
+@@ -712,8 +723,11 @@ async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String,
+     });
+ 
+     let client = reqwest::Client::new();
+-    let res = client.post(&url)
++    let cookie_string = format!("__Secure-1PSID={}; __Secure-1PSIDTS={}", db.google_cookie_1psid, db.google_cookie_1psidts);
++
++    let res = client.post(url)
+         .header("Content-Type", "application/json")
++        .header("Cookie", cookie_string)
+         .json(&payload)
+         .send()
+         .await;
+@@ -726,28 +740,87 @@ async fn ask_ai(prompt: String, app_handle: tauri::AppHandle) -> Result<String,
+                         return Ok(text.to_string());
+                     }
+                 }
+-                Err("Failed to parse AI response.".to_string())
++                Err("Failed to parse Consumer AI response.".to_string())
+             } else {
+                 let status = response.status();
+                 let error_body = response.text().await.unwrap_or_else(|_| "Could not read error body".to_string());
+-                eprintln!("Gemini API Error [{}]: {}", status, error_body);
+-                Err(format!("API Error {}: {}", status, error_body))
++                eprintln!("Consumer API Spoof Error [{}]: {}", status, error_body);
++                Err(format!("Scraper Error {}: {}", status, error_body))
+             }
+         },
+         Err(e) => Err(format!("Network Error: {}", e))
+     }
+ }
+ 
++#[tauri::command]
++async fn open_auth_window(app_handle: tauri::AppHandle) -> Result<(), String> {
++    use tauri::{WindowBuilder, WindowUrl};
++
++    if let Some(window) = app_handle.get_window("google_auth") {
++        let _ = window.close();
++    }
++
++    let injection_script = r#"
++        setInterval(() => {
++            const cookies = document.cookie.split(';');
++            let psid = null;
++            let psidts = null;
++            for (let i = 0; i < cookies.length; i++) {
++                let c = cookies[i].trim();
++                if (c.startsWith('__Secure-1PSID=')) {
++                    psid = c.substring('__Secure-1PSID='.length);
++                }
++                if (c.startsWith('__Secure-1PSIDTS=')) {
++                    psidts = c.substring('__Secure-1PSIDTS='.length);
++                }
++            }
++            if (psid && psidts) {
++                window.__TAURI__.event.emit('cookies_extracted', { psid: psid, psidts: psidts });
++            }
++        }, 3000);
++    "#;
++
++    let local_handle = app_handle.clone();
++    let auth_window = WindowBuilder::new(
++        &app_handle,
++        "google_auth",
++        WindowUrl::External("https://gemini.google.com/app".parse().unwrap())
++    )
++    .title("Google Authentication")
++    .width(800.0)
++    .height(600.0)
++    .initialization_script(injection_script)
++    .build()
++    .map_err(|e| format!("Failed to build auth window: {}", e))?;
++
++    let window_clone = auth_window.clone();
++    app_handle.listen_global("cookies_extracted", move |event| {
++        if let Some(payload) = event.payload() {
++            if let Ok(json) = serde_json::from_str::<serde_json::Value>(payload) {
++                if let (Some(psid), Some(psidts)) = (json["psid"].as_str(), json["psidts"].as_str()) {
++                    if let Ok(mut db) = get_user_db(local_handle.clone()) {
++                        db.google_cookie_1psid = psid.to_string();
++                        db.google_cookie_1psidts = psidts.to_string();
++                        let _ = save_user_db(local_handle.clone(), db);
++                        println!("Successfully scraped Google Consumer Cookies.");
++                    }
++                    let _ = window_clone.close();
++                }
++            }
++        }
++    });
++
++    Ok(())
++}
++
+ #[tauri::command]
+ async fn ask_ai_audio(audio_base64: String, app_handle: tauri::AppHandle) -> Result<String, String> {
+     let db = get_user_db(app_handle.clone())?;
+-    if db.gemini_api_key.is_empty() {
+-        return Err("API Key not set. Please configure it in settings.".to_string());
++    if db.google_cookie_1psid.is_empty() {
++        return Err("Google Account not connected. Please login in settings.".to_string());
+     }
+ 
+-    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={}", db.gemini_api_key);
+-    
+-    // Construct the Gemini API Multimodal payload
++    let url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
+     let payload = serde_json::json!({
+         "contents": [{
+             "parts": [
+@@ -765,8 +838,11 @@ async fn ask_ai_audio(audio_base64: String, app_handle: tauri::AppHandle) -> Res
+     });
+ 
+     let client = reqwest::Client::new();
+-    let res = client.post(&url)
++    let cookie_string = format!("__Secure-1PSID={}; __Secure-1PSIDTS={}", db.google_cookie_1psid, db.google_cookie_1psidts);
++
++    let res = client.post(url)
+         .header("Content-Type", "application/json")
++        .header("Cookie", cookie_string)
+         .json(&payload)
+         .send()
+         .await;
+@@ -779,18 +855,19 @@ async fn ask_ai_audio(audio_base64: String, app_handle: tauri::AppHandle) -> Res
+                         return Ok(text.to_string());
+                     }
+                 }
+-                Err("Failed to parse AI response.".to_string())
++                Err("Failed to parse Multimodal AI response.".to_string())
+             } else {
+                 let status = response.status();
+                 let error_body = response.text().await.unwrap_or_else(|_| "Could not read error body".to_string());
+-                eprintln!("Gemini API Error [{}]: {}", status, error_body);
+-                Err(format!("API Error {}: {}", status, error_body))
++                eprintln!("Consumer Multimodal Spoof Error [{}]: {}", status, error_body);
++                Err(format!("Audio Scraper Error {}: {}", status, error_body))
+             }
+         },
+         Err(e) => Err(format!("Network Error: {}", e))
+     }
+ }
+ 
++
+ // ---------------------------
+ // 6. GLOBAL LEADERBOARDS
+ // ---------------------------
+@@ -877,6 +954,7 @@ fn main() {
+             create_chat_session,
+             delete_chat_session,
+             generate_chat_title,
++            open_auth_window,
+             sync_leaderboard,
+             buy_pro_shop_upgrade
+         ])
+diff --git a/ui/index.html b/ui/index.html
+index 86f2a0e..de3127f 100644
+--- a/ui/index.html
++++ b/ui/index.html
+@@ -28,10 +28,13 @@
+                 <h3>🤖 API Configuration</h3>
+                 <p>Configure your Global Preferences.</p>
+                 <div class="form-group" style="margin-top: 1rem;">
+-                    <label style="font-size: 0.9rem; margin-bottom: 0.2rem; display:block;">AI Financial Tutor (Gemini
+-                        API Key)</label>
+-                    <input type="password" id="gemini-key-input" placeholder="AIzaSy...">
+-
++                    <label style="font-size: 0.9rem; margin-bottom: 0.2rem; display:block;">AI Financial Tutor (Consumer
++                        Google Integration)</label>
++                    <input type="text" id="gemini-key-input" placeholder="Google Account Not Connected" readonly
++                        style="background: rgba(255,255,255,0.05); color: #aaa;">
++                    <button id="btn-google-auth" onclick="googleAccountAuth()"
++                        style="margin-top: 0.5rem; background: #4285F4; border:none; display:block; width: 100%;">Connect
++                        Google Account</button>
+                     <label style="font-size: 0.9rem; margin-top: 1rem; margin-bottom: 0.2rem; display:block;">Global
+                         Currency</label>
+                     <select id="global-currency" style="margin-bottom: 1rem;">
+diff --git a/ui/main.js b/ui/main.js
+index eef7793..7348eff 100644
+--- a/ui/main.js
++++ b/ui/main.js
+@@ -135,8 +135,8 @@ document.addEventListener('DOMContentLoaded', () => __awaiter(void 0, void 0, vo
+     // 3. Pre-load Saved API Key into Settings Input & Portfolio Display
+     try {
+         const db = yield invoke('get_user_db');
+-        if (db && db.gemini_api_key) {
+-            document.getElementById('gemini-key-input').value = db.gemini_api_key;
++        if (db.google_cookie_1psid) {
++            document.getElementById('gemini-key-input').value = "•••••••••••• (Authorized)";
+         }
+         if (db && db.currency) {
+             globalCurrency = db.currency;
+@@ -549,15 +549,33 @@ window.openSettings = function () {
+ // @ts-ignore
+ window.saveSettings = function () {
+     return __awaiter(this, void 0, void 0, function* () {
+-        const key = document.getElementById('gemini-key-input').value;
+         const currency = document.getElementById('global-currency').value;
+         try {
+-            yield invoke('save_settings', { apiKey: key, currency });
++            yield invoke('save_settings', { __secure_1psid: "", __secure_1psidts: "", currency });
+             globalCurrency = currency;
+             document.getElementById('settings-modal').classList.add('hidden');
+         }
+         catch (e) {
+-            alert("Failed to save API KEY: " + e);
++            alert("Failed to save Currency: " + e);
++        }
++    });
++};
++// @ts-ignore
++window.googleAccountAuth = function () {
++    return __awaiter(this, void 0, void 0, function* () {
++        const btn = document.getElementById('btn-google-auth');
++        if (btn)
++            btn.innerHTML = "Opening Google...";
++        try {
++            yield invoke('open_auth_window');
++            if (btn)
++                btn.innerHTML = "Authorized!";
++            document.getElementById('gemini-key-input').value = "•••••••••••• (Authorized)";
++        }
++        catch (e) {
++            alert("Google Error: " + e);
++            if (btn)
++                btn.innerHTML = "Login Error";
+         }
+     });
+ };
+diff --git a/ui/main.ts b/ui/main.ts
+index 552a6bb..c18cbeb 100644
+--- a/ui/main.ts
++++ b/ui/main.ts
+@@ -132,8 +132,8 @@ document.addEventListener('DOMContentLoaded', async () => {
+     // 3. Pre-load Saved API Key into Settings Input & Portfolio Display
+     try {
+         const db: any = await invoke('get_user_db');
+-        if (db && db.gemini_api_key) {
+-            (document.getElementById('gemini-key-input') as HTMLInputElement).value = db.gemini_api_key;
++        if (db.google_cookie_1psid) {
++            (document.getElementById('gemini-key-input') as HTMLInputElement).value = "•••••••••••• (Authorized)";
+         }
+         if (db && db.currency) {
+             globalCurrency = db.currency;
+@@ -524,14 +524,27 @@ window.openSettings = function () {
+ 
+ // @ts-ignore
+ window.saveSettings = async function () {
+-    const key = (document.getElementById('gemini-key-input') as HTMLInputElement).value;
+     const currency = (document.getElementById('global-currency') as HTMLSelectElement).value;
+     try {
+-        await invoke('save_settings', { apiKey: key, currency });
++        await invoke('save_settings', { __secure_1psid: "", __secure_1psidts: "", currency });
+         globalCurrency = currency;
+         document.getElementById('settings-modal')!.classList.add('hidden');
+     } catch (e) {
+-        alert("Failed to save API KEY: " + e);
++        alert("Failed to save Currency: " + e);
++    }
++}
++
++// @ts-ignore
++window.googleAccountAuth = async function () {
++    const btn = document.getElementById('btn-google-auth') as HTMLButtonElement;
++    if (btn) btn.innerHTML = "Opening Google...";
++    try {
++        await invoke('open_auth_window');
++        if (btn) btn.innerHTML = "Authorized!";
++        (document.getElementById('gemini-key-input') as HTMLInputElement).value = "•••••••••••• (Authorized)";
++    } catch (e) {
++        alert("Google Error: " + e);
++        if (btn) btn.innerHTML = "Login Error";
+     }
+ }
+ 
+-- 
+2.53.0.windows.1
+
